@@ -1,0 +1,10 @@
+build/
+CMakeFiles/
+lib/
+
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+uring-test*
+
+.*.sw*
