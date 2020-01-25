@@ -31,7 +31,7 @@ enum task_state
 typedef struct task
 {
   enum task_state task_state;
-  rad_t *task_rad;
+  res_desc_t *task_rd;
 
   void *task_cb_data;
   void *task_result;
@@ -43,12 +43,12 @@ typedef void (*task_cb_t)(task_t *task);
 typedef uint8_t foo_t;
 typedef uint64_t bar_t;
 
-typedef struct resource_allocation_descriptor
+typedef struct resource_descriptor
 {
-  size_t rad_count;
-  enum resource_type *rad_type_list;
-  void **rad_data_list;
-} rad_t;
+  size_t rd_count;
+  enum resource_type *rd_type_list;
+  void **rd_data_list;
+} res_desc_t;
 
 void task_new(task_cb_t cb, void *task_cb_data);
 
