@@ -9,6 +9,10 @@ set(CMAKE_BUILD_TYPE Debug)
 # add the executable
 add_executable(uring-test
 	src/main.c
+	src/task.c
+	src/resource.c
+	include/task.h
+	include/resource.h
 )
 # add_subdirectory(src)
 target_link_libraries(uring-test uring)
