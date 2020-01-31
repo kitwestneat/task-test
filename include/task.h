@@ -1,15 +1,9 @@
 #ifndef _TASK_H
 #define _TASK_H 1
 
-#include <stdio.h>
 #include <stdint.h>
 
 #include "resource.h"
-
-#define log(message, ...)                         \
-  {                                               \
-    fprintf(stderr, message "\n", ##__VA_ARGS__); \
-  }
 
 enum task_state
 {
@@ -17,6 +11,9 @@ enum task_state
   TS_FILLING,
   TS_SUBMITTED,
 };
+
+struct task;
+typedef void (*task_cb_t)(struct task *task);
 
 typedef struct task
 {
@@ -28,8 +25,6 @@ typedef struct task
   void *task_result;
 
 } task_t;
-
-typedef void (*task_cb_t)(task_t *task);
 
 typedef uint8_t foo_t;
 typedef uint64_t bar_t;

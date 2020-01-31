@@ -1,7 +1,10 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
 
+#include "log.h"
+#include "resource.h"
 #include "task.h"
 
 struct resource_pool *task_pool;
@@ -126,63 +129,74 @@ void resource_pool_init()
     queue_tail = NULL;
 }
 
-int resource_desc_fill(res_desc_t *desc)
+struct resource_pool *resource_pool_get_by_type(enum resource_type type)
+{
+    struct resource_pool *rp;
+
+    switch (type)
+    {
+    case RT_TASK:
+        rp = task_pool;
+        break;
+    case RT_FOO:
+        rp = foo_pool;
+        break;
+    case RT_BAR:
+        rp = bar_pool;
+        break;
+    default:
+        log("unknown task type %d", type);
+        return NULL;
+    }
+    assert(rp);
+}
+
+bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 {
     int type_count[RT_MAX] = {0};
 
-    log("resource_desc_fill rd_count %zu", desc->rd_count);
     for (int i = 0; i < desc->rd_count; i++)
     {
-        struct resource_pool *rp;
         enum resource_type type = desc->rd_type_list[i];
-        switch (type)
-        {
-        case RT_TASK:
-            rp = task_pool;
-            break;
-        case RT_FOO:
-            rp = foo_pool;
-            break;
-        case RT_BAR:
-            rp = bar_pool;
-            break;
-        default:
-            log("unknown task type %d", type);
-            return -EINVAL;
-        }
-
+        struct resource_pool *rp = resource_pool_get_by_type(type);
         if (!rp)
         {
-            log("resource pool not initialized, aborting");
             return -EINVAL;
         }
 
         type_count[type]++;
 
-        log("type_count %d free count %zu", type_count[type], rp->rp_free_count);
-        if (type_count[type] > rp->rp_free_count)
+        int tgt_count = check_free ? rp->rp_free_count : rp->rp_count;
+
+        if (type_count[type] > tgt_count)
         {
-            return -EAGAIN;
+            return false;
         }
+    }
+
+    return true;
+}
+
+int resource_desc_is_available(res_desc_t *desc)
+{
+    return resource_desc_count_check(desc, true);
+}
+
+int resource_desc_is_valid(res_desc_t *desc)
+{
+    return resource_desc_count_check(desc, false);
+}
+
+int resource_desc_fill(res_desc_t *desc)
+{
+    if (!resource_desc_is_available(desc))
+    {
+        return -EAGAIN;
     }
 
     for (int i = 0; i < desc->rd_count; i++)
     {
-        struct resource_pool *rp;
-        switch (desc->rd_type_list[i])
-        {
-        case RT_TASK:
-            rp = task_pool;
-            break;
-        case RT_FOO:
-            rp = foo_pool;
-            break;
-        case RT_BAR:
-            rp = bar_pool;
-            break;
-        default:
-            break;
-        }
+        struct resource_pool *rp = resource_pool_get_by_type(desc->rd_type_list[i]);
 
         int rp_index = bitmap_alloc(rp->rp_free_bitmap, rp->rp_count);
         rp->rp_free_count--;
@@ -193,25 +207,11 @@ int resource_desc_fill(res_desc_t *desc)
     return 0;
 }
 
-void resource_release(res_desc_t *desc)
+void resource_desc_release_resources(res_desc_t *desc)
 {
     for (int i = 0; i < desc->rd_count; i++)
     {
-        struct resource_pool *rp;
-        switch (desc->rd_type_list[i])
-        {
-        case RT_TASK:
-            rp = task_pool;
-            break;
-        case RT_FOO:
-            rp = foo_pool;
-            break;
-        case RT_BAR:
-            rp = bar_pool;
-            break;
-        default:
-            break;
-        }
+        struct resource_pool *rp = resource_pool_get_by_type(desc->rd_type_list[i]);
 
         unsigned rp_index = resource_pool_get_index(rp, desc->rd_data_list[i]);
         bitmap_dealloc(rp->rp_free_bitmap, rp_index);
@@ -219,14 +219,20 @@ void resource_release(res_desc_t *desc)
     }
 }
 
-void resource_submit(res_desc_t *res)
+int resource_submit(res_desc_t *res)
 {
     int rc;
 
     if (!res->rd_cb)
     {
         log("resource allocation request missing callback, ignoring");
-        return;
+        return -EINVAL;
+    }
+
+    if (!resource_desc_is_valid(res))
+    {
+        log("attempting to allocate too many resources, aborting");
+        return -E2BIG;
     }
 
     res->rd_next = NULL;
@@ -237,17 +243,22 @@ void resource_submit(res_desc_t *res)
         rc = resource_desc_fill(res);
         if (rc == -EAGAIN)
         {
+            log("queuing resource fill req to head");
             queue_head = queue_tail = res;
         }
         else
         {
+            log("completing resource fill req");
             res->rd_cb(res);
         }
     }
     else
     {
+        log("queuing resource fill req to tail");
         queue_tail->rd_next = res;
     }
+
+    return 0;
 }
 
 void resource_poll()
@@ -282,6 +293,7 @@ res_desc_t *res_desc_new(size_t count)
 
 void res_desc_done(res_desc_t *desc)
 {
+
     free(desc->rd_type_list);
     free(desc);
 }

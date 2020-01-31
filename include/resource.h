@@ -1,7 +1,7 @@
 #ifndef _RESOURCE_H
 #define _RESOURCE_H 1
 
-#include "task.h"
+#include <stdint.h>
 
 #define TASK_COUNT 6
 #define FOO_COUNT 3
@@ -9,8 +9,8 @@
 
 enum resource_type
 {
-    RT_MIN = 0,
-    RT_TASK = 0,
+    RT_INVAL = 0,
+    RT_TASK = 1,
     RT_FOO,
     RT_BAR,
     RT_MAX,
@@ -44,7 +44,7 @@ res_desc_t *res_desc_new(size_t count);
 void res_desc_done(res_desc_t *desc);
 
 // try to allocate the resources in the descriptor
-void resource_submit(res_desc_t *res);
+int resource_submit(res_desc_t *res);
 void resource_release(res_desc_t *res);
 
 void resource_poll();

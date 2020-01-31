@@ -26,7 +26,7 @@ int main()
 {
     resource_pool_init();
 
-    res_desc_t *desc = res_desc_new(6);
+    res_desc_t *desc = res_desc_new(task_count);
     desc->rd_type_list[0] = desc->rd_type_list[1] = desc->rd_type_list[2] = RT_TASK;
     desc->rd_type_list[3] = desc->rd_type_list[4] = desc->rd_type_list[5] = RT_TASK;
     desc->rd_cb = task_create_cb;

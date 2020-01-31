@@ -16,3 +16,9 @@ add_executable(uring-test
 )
 # add_subdirectory(src)
 target_link_libraries(uring-test uring)
+
+add_executable(ra-test
+	tests/ra-test.c
+	src/resource.c
+	include/resource.h
+)
