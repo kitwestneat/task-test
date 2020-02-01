@@ -2,6 +2,7 @@
 #define _RESOURCE_H 1
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define TASK_COUNT 6
 #define FOO_COUNT 3
@@ -14,15 +15,6 @@ enum resource_type
     RT_FOO,
     RT_BAR,
     RT_MAX,
-};
-
-struct resource_pool
-{
-    enum resource_type rp_type;
-    size_t rp_count;
-    size_t rp_free_count;
-    unsigned char *rp_free_bitmap;
-    uint8_t rp_data[];
 };
 
 struct resource_descriptor;
@@ -38,15 +30,30 @@ typedef struct resource_descriptor
     void *rd_data_list[];
 } res_desc_t;
 
+typedef void (*resource_submit_fn_t)(void *resource, res_desc_t *desc);
+
+struct resource_pool
+{
+    enum resource_type rp_type;
+    resource_submit_fn_t rp_submit;
+    int (*rp_poll)();
+    size_t rp_count;
+    size_t rp_free_count;
+    unsigned char *rp_free_bitmap;
+
+    uint8_t rp_data[];
+};
+
 void resource_pool_init();
 
-res_desc_t *res_desc_new(size_t count);
-void res_desc_done(res_desc_t *desc);
+res_desc_t *resource_desc_new(size_t count);
+void resource_desc_done(res_desc_t *desc);
 
 // try to allocate the resources in the descriptor
-int resource_submit(res_desc_t *res);
-void resource_release(res_desc_t *res);
+int resource_desc_submit(res_desc_t *res);
+void resource_desc_release(res_desc_t *res);
+int resource_poll();
 
-void resource_poll();
+void resource_desc_children_submit(res_desc_t *desc);
 
 #endif

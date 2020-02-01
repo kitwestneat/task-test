@@ -116,6 +116,25 @@ struct resource_pool *resource_pool_new(enum resource_type type, size_t count)
     rp->rp_free_count = count;
     rp->rp_free_bitmap = bitmap_new(count);
 
+    switch (type)
+    {
+    case RT_FOO:
+        rp->rp_submit = foo_submit;
+        rp->rp_poll = foo_poll;
+        break;
+    case RT_TASK:
+        rp->rp_submit = task_submit;
+        rp->rp_poll = NULL;
+        break;
+    case RT_BAR:
+        rp->rp_submit = bar_submit;
+        rp->rp_poll = bar_poll;
+        break;
+    default:
+        log("unknown resource type %d", type);
+        assert(false);
+    }
+
     return rp;
 }
 
@@ -207,7 +226,7 @@ int resource_desc_fill(res_desc_t *desc)
     return 0;
 }
 
-void resource_desc_release_resources(res_desc_t *desc)
+void resource_desc_release(res_desc_t *desc)
 {
     for (int i = 0; i < desc->rd_count; i++)
     {
@@ -219,7 +238,7 @@ void resource_desc_release_resources(res_desc_t *desc)
     }
 }
 
-int resource_submit(res_desc_t *res)
+int resource_desc_submit(res_desc_t *res)
 {
     int rc;
 
@@ -261,25 +280,44 @@ int resource_submit(res_desc_t *res)
     return 0;
 }
 
-void resource_poll()
+int resource_desc_alloc_poll()
 {
-    res_desc_t *desc = queue_head;
-    while (desc)
+    if (!queue_head)
     {
-        int rc = resource_desc_fill(desc);
-        if (rc == 0)
-        {
-            desc->rd_cb(desc);
-            queue_head = queue_head->rd_next;
-
-            break;
-        }
-
-        desc = desc->rd_next;
+        return 0;
     }
+
+    int rc = resource_desc_fill(queue_head);
+    if (rc != 0)
+    {
+        return 0;
+    }
+
+    queue_head->rd_cb(queue_head);
+    queue_head = queue_head->rd_next;
+
+    return 1;
 }
 
-res_desc_t *res_desc_new(size_t count)
+int resource_poll()
+{
+    int rc = 0;
+    for (enum resource_type type = 1; type < RT_MAX; type++)
+    {
+        struct resource_pool *rp = resource_pool_get_by_type(type);
+
+        if (rp->rp_poll)
+        {
+            rc += rp->rp_poll();
+        }
+    }
+
+    rc += resource_desc_alloc_poll();
+
+    return rc;
+}
+
+res_desc_t *resource_desc_new(size_t count)
 {
     res_desc_t *desc = malloc(sizeof(res_desc_t) + sizeof(void *) * count);
     desc->rd_cb_data = NULL;
@@ -291,9 +329,26 @@ res_desc_t *res_desc_new(size_t count)
     return desc;
 }
 
-void res_desc_done(res_desc_t *desc)
+void resource_desc_done(res_desc_t *desc)
 {
 
     free(desc->rd_type_list);
     free(desc);
+}
+
+void resource_desc_children_submit(res_desc_t *desc)
+{
+    for (int i = 0; i < desc->rd_count; i++)
+    {
+        struct resource_pool *rp = resource_pool_get_by_type(desc->rd_type_list[i]);
+
+        if (rp->rp_submit)
+        {
+            rp->rp_submit(desc->rd_data_list[i], desc);
+        }
+        else
+        {
+            desc->rd_cb(desc);
+        }
+    }
 }

@@ -2,6 +2,7 @@
 #define _TASK_H 1
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "resource.h"
 
@@ -13,12 +14,13 @@ enum task_state
 };
 
 struct task;
-typedef void (*task_cb_t)(struct task *task);
+typedef int (*task_cb_t)(struct task *task);
 
 typedef struct task
 {
   enum task_state task_state;
   res_desc_t *task_rd;
+  size_t task_resource_done_count;
 
   task_cb_t task_cb;
   void *task_cb_data;

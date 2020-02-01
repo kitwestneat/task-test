@@ -11,8 +11,10 @@ add_executable(uring-test
 	src/main.c
 	src/task.c
 	src/resource.c
+	src/foobar.c
 	include/task.h
 	include/resource.h
+	include/foobar.h
 )
 # add_subdirectory(src)
 target_link_libraries(uring-test uring)
