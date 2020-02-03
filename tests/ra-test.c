@@ -64,5 +64,6 @@ void allocate_one_of_each(struct resource_descriptor *desc)
 void finished(struct resource_descriptor *desc)
 {
   resource_desc_done(desc);
+  resource_pool_fini();
   log("done!");
 }

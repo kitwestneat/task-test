@@ -9,7 +9,7 @@ void task0_loop(task_t *task)
     static int run_count = 1;
     foo_t *foo = task_rd_get_data(task, 0);
 
-    log("running task0 [%d], got %d", run_count, *foo);
+    log("running task0 [%d], got %c", run_count, *foo);
 
     if (run_count++ < 10)
     {
@@ -29,7 +29,7 @@ void task0_fill(task_t *task)
     log("filling task0");
 
     // fill foo request
-    *foo = 123;
+    *foo = 'a';
     task->task_cb = task0_loop;
 
     // submit task
@@ -73,4 +73,6 @@ int main()
     resource_desc_submit(desc);
 
     resource_desc_done(desc);
+
+    resource_pool_fini();
 }
