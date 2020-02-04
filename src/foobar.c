@@ -67,9 +67,17 @@ static struct foobar_queue *foobar_queue_poll(struct foobar_queue **head_ptr)
 {
   struct foobar_queue *node = *head_ptr;
 
-  if (!node || !deadline_passed(&node->fbq_deadline))
+  if (!node)
   {
-    //log("foobar not ready %p", node);
+    return NULL;
+  }
+
+  bool node_ready = deadline_passed(&node->fbq_deadline);
+
+  if (!node_ready)
+  {
+    log("foobar not ready %p", node);
+
     return NULL;
   }
 

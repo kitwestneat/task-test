@@ -15,6 +15,7 @@ bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 {
     int type_count[RT_MAX] = {0};
 
+    fprintf(stderr, "resource_desc_count_check: ");
     for (int i = 0; i < desc->rd_count; i++)
     {
         enum resource_type type = desc->rd_type_list[i];
@@ -28,12 +29,16 @@ bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 
         int tgt_count = check_free ? rp->rp_free_count : rp->rp_count;
 
+        fprintf(stderr, "rp_free %d / rp_count %d rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
+
         if (type_count[type] > tgt_count)
         {
+            fprintf(stderr, "abort\n");
             return false;
         }
     }
 
+    fprintf(stderr, "ok\n");
     return true;
 }
 
@@ -74,6 +79,8 @@ void resource_desc_release(res_desc_t *desc)
 
         resource_pool_put_obj(rp, desc->rd_data_list[i]);
     }
+
+    desc->rd_allocated = false;
 }
 
 int resource_desc_alloc_submit(res_desc_t *res)
@@ -132,21 +139,48 @@ int resource_desc_submit(res_desc_t *res)
     }
 }
 
+void print_res_desc(res_desc_t *desc)
+{
+    log("desc[%p]\n");
+}
+
+int poll_count = 0;
 int resource_desc_alloc_poll()
 {
-    if (!queue_head)
+    res_desc_t *next = queue_head;
+    res_desc_t **next_ptr = &queue_head;
+
+    poll_count++;
+
+    int rc;
+    int q_count = 0;
+    while (next && (rc = resource_desc_fill(next)) == -EAGAIN)
+    {
+        q_count++;
+        if (poll_count == 100)
+        {
+            print_res_desc(next);
+            log("resource allocation stalled, %d requests in queue", q_count);
+        }
+
+        next_ptr = &next->rd_next;
+        next = next->rd_next;
+    }
+
+    if (!next)
     {
         return 0;
     }
 
-    int rc = resource_desc_fill(queue_head);
     if (rc != 0)
     {
-        return 0;
+        return rc;
     }
 
-    queue_head->rd_cb(queue_head);
-    queue_head = queue_head->rd_next;
+    next->rd_cb(next);
+    *next_ptr = next->rd_next;
+
+    poll_count = 0;
 
     return 1;
 }
@@ -172,9 +206,9 @@ int resource_poll()
 
 res_desc_t *resource_desc_new(size_t count)
 {
-    res_desc_t *desc = malloc(sizeof(res_desc_t) + sizeof(void *) * count);
+    res_desc_t *desc = malloc(sizeof(res_desc_t) + sizeof(enum resource_type) * count);
     desc->rd_cb_data = NULL;
-    desc->rd_type_list = malloc(sizeof(enum resource_type) * count);
+    desc->rd_data_list = malloc(sizeof(void *) * count);
     desc->rd_count = count;
     desc->rd_next = NULL;
     desc->rd_cb = NULL;
@@ -186,7 +220,7 @@ res_desc_t *resource_desc_new(size_t count)
 void resource_desc_done(res_desc_t *desc)
 {
 
-    free(desc->rd_type_list);
+    free(desc->rd_data_list);
     free(desc);
 }
 

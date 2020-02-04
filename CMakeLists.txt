@@ -6,21 +6,50 @@ project(uring-test)
 include_directories(include)
 set(CMAKE_BUILD_TYPE Debug)
 
-# add the executable
-add_executable(uring-test
-	src/main.c
-	src/task.c
-	src/resource.c
-	src/foobar.c
-	include/task.h
-	include/resource.h
-	include/foobar.h
-)
-# add_subdirectory(src)
-target_link_libraries(uring-test uring)
+# target_link_libraries(uring-test uring)
 
 add_executable(ra-test
 	tests/ra-test.c
 	src/resource.c
+	src/resource_pool.c
+	src/foobar.c
 	include/resource.h
+	include/log.h
+	include/foobar.h
+)
+
+add_executable(foo-test
+	tests/foo-test.c
+	src/task.c
+	src/resource.c
+	src/resource_pool.c
+	src/foobar.c
+	include/task.h
+	include/resource.h
+	include/log.h
+	include/foobar.h
+)
+
+add_executable(foobar-test
+	tests/foobar-test.c
+	src/task.c
+	src/resource.c
+	src/resource_pool.c
+	src/foobar.c
+	include/task.h
+	include/resource.h
+	include/log.h
+	include/foobar.h
+)
+
+add_executable(bigfoo-test
+	tests/bigfoo-test.c
+	src/task.c
+	src/resource.c
+	src/resource_pool.c
+	src/foobar.c
+	include/task.h
+	include/resource.h
+	include/log.h
+	include/foobar.h
 )

@@ -4,17 +4,21 @@
 #include "task.h"
 #include "resource.h"
 
-void task0_loop(task_t *task)
+void task0_fill(task_t *task);
+
+void task0_done(task_t *task)
 {
     static int run_count = 1;
     foo_t *foo = task_rd_get_data(task, 0);
 
-    log("running task0 [%d], got %c", run_count, *foo);
+    log("running task0 [%d], got %d", run_count, *foo);
+
+    task->task_cb_data = (void *)(uintptr_t)*foo;
 
     if (run_count++ < 10)
     {
         // re-submit task
-        task_submit(task);
+        task_submit(task, task0_fill);
     }
     else
     {
@@ -29,11 +33,10 @@ void task0_fill(task_t *task)
     log("filling task0");
 
     // fill foo request
-    *foo = 'a';
-    task->task_cb = task0_loop;
+    *foo = (foo_t)(uintptr_t)task->task_cb_data;
 
     // submit task
-    task_submit(task);
+    task_submit(task, task0_done);
 }
 
 // foo pusher
@@ -42,12 +45,13 @@ void task0_submit(task_t *task)
     int rc = task_rd_new(task, 1);
     assert(!rc);
 
+    task->task_cb_data = (void *)(uintptr_t)'A';
+
     log("task0_submit");
 
     task_rd_set_type(task, 0, RT_FOO);
-    task->task_cb = task0_fill;
 
-    task_submit(task);
+    task_submit(task, task0_fill);
 }
 
 void task_create_cb(res_desc_t *desc)

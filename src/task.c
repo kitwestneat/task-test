@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <errno.h>
 #include <unistd.h>
 
@@ -9,10 +8,7 @@ int tasks_alive = 0;
 
 int task_rd_new(task_t *task, size_t count)
 {
-    if (task->task_rd)
-    {
-        return -EINVAL;
-    }
+    ASSERT(!task->task_rd);
 
     task->task_rd = resource_desc_new(count);
     task->task_rd->rd_cb_data = task;
@@ -22,7 +18,7 @@ int task_rd_new(task_t *task, size_t count)
 
 void task_rd_done(task_t *task)
 {
-    assert(task->task_rd);
+    ASSERT(task->task_rd);
 
     resource_desc_release(task->task_rd);
 
@@ -31,15 +27,15 @@ void task_rd_done(task_t *task)
 
 void task_rd_set_type(task_t *task, int slot, enum resource_type type)
 {
-    assert(!task->task_rd->rd_allocated);
-    assert(slot < task->task_rd->rd_count);
+    ASSERT(!task->task_rd->rd_allocated);
+    ASSERT(slot < task->task_rd->rd_count);
 
     task->task_rd->rd_type_list[slot] = type;
 }
 
 void *task_rd_get_data(task_t *task, int slot)
 {
-    assert(task->task_rd->rd_allocated);
+    ASSERT(task->task_rd->rd_allocated);
 
     return task->task_rd->rd_data_list[slot];
 }
@@ -69,21 +65,46 @@ void task_resource_allocated(struct resource_descriptor *desc)
     task_run_cb(task);
 }
 
-void task_submit(task_t *task)
+static void task_rd_submit(task_t *task)
 {
-    log("task_submit %p [alive=%d]", task, tasks_alive);
-    tasks_alive++;
-
-    if (task->task_rd->rd_allocated)
+    ASSERT(task->task_rd);
+    if (task->task_state == TS_FILLING)
     {
+        ASSERT(task->task_rd->rd_allocated);
         task->task_rd->rd_cb = task_resource_done;
+        task->task_state = TS_SUBMITTED;
     }
     else
     {
+        if (task->task_rd->rd_allocated)
+        {
+            resource_desc_release(task->task_rd);
+        }
+
         task->task_rd->rd_cb = task_resource_allocated;
+        task->task_state = TS_FILLING;
     }
 
     resource_desc_submit(task->task_rd);
+}
+
+void task_submit(task_t *task, task_cb_t next)
+{
+    log("task_submit %p [alive=%d]", task, tasks_alive);
+
+    tasks_alive++;
+
+    task->task_cb = next;
+
+    if (task->task_rd)
+    {
+        task_rd_submit(task);
+    }
+    else
+    {
+        log("Not sure what to do with task with no resources");
+        ASSERT(false);
+    }
 }
 
 static void task_sleep()

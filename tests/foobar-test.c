@@ -1,20 +1,33 @@
 #include <assert.h>
+#include <stdlib.h>
 
 #include "log.h"
 #include "task.h"
 #include "resource.h"
 
-void task0_loop(task_t *task)
+void task0_fill(task_t *task);
+void task1_fill(task_t *task);
+void task2_fill(task_t *task);
+
+struct foobar_data
+{
+    foo_t foo;
+    bar_t bar;
+};
+
+void task0_done(task_t *task)
 {
     static int run_count = 1;
     foo_t *foo = task_rd_get_data(task, 0);
 
     log("running task0 [%d], got %d", run_count, *foo);
 
+    task->task_cb_data = (void *)(uintptr_t)*foo;
+
     if (run_count++ < 10)
     {
         // re-submit task
-        task_submit(task);
+        task_submit(task, task0_fill);
     }
     else
     {
@@ -29,11 +42,10 @@ void task0_fill(task_t *task)
     log("filling task0");
 
     // fill foo request
-    *foo = 123;
-    task->task_cb = task0_loop;
+    *foo = (foo_t)(uintptr_t)task->task_cb_data;
 
     // submit task
-    task_submit(task);
+    task_submit(task, task0_done);
 }
 
 // foo pusher
@@ -42,25 +54,27 @@ void task0_submit(task_t *task)
     int rc = task_rd_new(task, 1);
     assert(!rc);
 
+    task->task_cb_data = (void *)(uintptr_t)'A';
+
     log("task0_submit");
 
     task_rd_set_type(task, 0, RT_FOO);
-    task->task_cb = task0_fill;
 
-    task_submit(task);
+    task_submit(task, task0_fill);
 }
 
-void task1_loop(task_t *task)
+void task1_done(task_t *task)
 {
     static int run_count = 1;
     bar_t *bar = task_rd_get_data(task, 0);
+    bar_t *bar1 = task_rd_get_data(task, 1);
 
-    log("running task1 [%d], got %d", run_count, *bar);
+    log("running task1 [%d], got %d", run_count, *bar, *bar1);
 
     if (run_count++ < 10)
     {
         // re-submit task
-        task_submit(task);
+        task_submit(task, task1_fill);
     }
     else
     {
@@ -71,32 +85,33 @@ void task1_loop(task_t *task)
 void task1_fill(task_t *task)
 {
     bar_t *bar = task_rd_get_data(task, 0);
+    bar_t *bar1 = task_rd_get_data(task, 1);
 
     log("filling task1");
 
     // fill foo request
     *bar = 654;
-    task->task_cb = task1_loop;
+    *bar1 = 321;
 
     // submit task
-    task_submit(task);
+    task_submit(task, task1_done);
 }
 
 // bar pusher
 void task1_submit(task_t *task)
 {
-    int rc = task_rd_new(task, 1);
+    int rc = task_rd_new(task, 2);
     assert(!rc);
 
     log("task1_submit");
 
     task_rd_set_type(task, 0, RT_BAR);
-    task->task_cb = task1_fill;
+    task_rd_set_type(task, 1, RT_BAR);
 
-    task_submit(task);
+    task_submit(task, task1_fill);
 }
 
-void task2_loop(task_t *task)
+void task2_done(task_t *task)
 {
     static int run_count = 1;
     foo_t *foo = task_rd_get_data(task, 0);
@@ -104,10 +119,14 @@ void task2_loop(task_t *task)
 
     log("running task2 [%d], got %c %d", run_count, *foo, *bar);
 
+    struct foobar_data *fbd = task->task_cb_data;
+    fbd->foo = *foo;
+    fbd->bar = *bar;
+
     if (run_count++ < 10)
     {
         // re-submit task
-        task_submit(task);
+        task_submit(task, task2_fill);
     }
     else
     {
@@ -121,14 +140,12 @@ void task2_fill(task_t *task)
     bar_t *bar = task_rd_get_data(task, 1);
 
     log("filling task2");
-
-    // fill foo request
-    *foo = 'a';
-    *bar = 321;
-    task->task_cb = task2_loop;
+    struct foobar_data *fbd = task->task_cb_data;
+    *foo = fbd->foo;
+    *bar = fbd->bar;
 
     // submit task
-    task_submit(task);
+    task_submit(task, task2_done);
 }
 
 // bar pusher
@@ -139,11 +156,16 @@ void task2_submit(task_t *task)
 
     log("task2_submit");
 
+    struct foobar_data *fbd = malloc(sizeof(struct foobar_data));
+    fbd->foo = 'a';
+    fbd->bar = 321;
+
+    task->task_cb_data = fbd;
+
     task_rd_set_type(task, 0, RT_FOO);
     task_rd_set_type(task, 1, RT_BAR);
-    task->task_cb = task2_fill;
 
-    task_submit(task);
+    task_submit(task, task2_fill);
 }
 
 void task_create_cb(res_desc_t *desc)

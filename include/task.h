@@ -14,7 +14,7 @@ enum task_state
 };
 
 struct task;
-typedef int (*task_cb_t)(struct task *task);
+typedef void (*task_cb_t)(struct task *task);
 
 typedef struct task
 {
@@ -28,14 +28,14 @@ typedef struct task
 
 } task_t;
 
-typedef uint8_t foo_t;
-typedef uint64_t bar_t;
-
 void task_new(task_cb_t cb, void *task_cb_data);
 
-int task_rad_new(task_t *task, size_t count);
-void task_rad_done(task_t *task);
+int task_rd_new(task_t *task, size_t count);
+void task_rd_done(task_t *task);
+void task_rd_set_type(task_t *task, int slot, enum resource_type type);
+void *task_rd_get_data(task_t *task, int slot);
 
-void task_submit(task_t *task);
+void task_submit(task_t *task, task_cb_t next);
+void task_start();
 
 #endif

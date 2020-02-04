@@ -2,10 +2,11 @@
 #define _RESOURCE_H 1
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #define TASK_COUNT 6
-#define FOO_COUNT 3
+#define FOO_COUNT 50
 #define BAR_COUNT 2
 
 enum resource_type
@@ -17,6 +18,9 @@ enum resource_type
     RT_MAX,
 };
 
+typedef uint8_t foo_t;
+typedef uint64_t bar_t;
+
 struct resource_descriptor;
 typedef void (*desc_cb_t)(struct resource_descriptor *desc);
 
@@ -26,8 +30,11 @@ typedef struct resource_descriptor
     desc_cb_t rd_cb;
     void *rd_cb_data;
     size_t rd_count;
-    enum resource_type *rd_type_list;
-    void *rd_data_list[];
+
+    bool rd_allocated;
+    void **rd_data_list;
+
+    enum resource_type rd_type_list[];
 } res_desc_t;
 
 typedef void (*resource_submit_fn_t)(void *resource, res_desc_t *desc);
@@ -45,6 +52,10 @@ struct resource_pool
 };
 
 void resource_pool_init();
+struct resource_pool *resource_pool_get_by_type(enum resource_type type);
+void *resource_pool_alloc_obj(struct resource_pool *rp);
+void resource_pool_put_obj(struct resource_pool *rp, void *obj);
+void resource_pool_fini();
 
 res_desc_t *resource_desc_new(size_t count);
 void resource_desc_done(res_desc_t *desc);
