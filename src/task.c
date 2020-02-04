@@ -44,13 +44,16 @@ static void task_run_cb(task_t *task)
 {
     task->task_cb(task);
     tasks_alive--;
-    log("post task_cb %p [alive=%d]", task, tasks_alive);
+    log("task_run_cb %p: after cb [alive=%d]", task, tasks_alive);
 }
 
 void task_resource_done(struct resource_descriptor *desc)
 {
     task_t *task = desc->rd_cb_data;
     task->task_resource_done_count++;
+
+    log("task_resource_done %p: done %d total %d | %s", task, task->task_resource_done_count, desc->rd_count,
+        (task->task_resource_done_count == desc->rd_count) ? "running cb" : "waiting");
 
     if (task->task_resource_done_count == desc->rd_count)
     {
@@ -62,6 +65,7 @@ void task_resource_done(struct resource_descriptor *desc)
 void task_resource_allocated(struct resource_descriptor *desc)
 {
     task_t *task = desc->rd_cb_data;
+    log("task_resource_allocated %p: running cb", task);
     task_run_cb(task);
 }
 
@@ -73,16 +77,19 @@ static void task_rd_submit(task_t *task)
         ASSERT(task->task_rd->rd_allocated);
         task->task_rd->rd_cb = task_resource_done;
         task->task_state = TS_SUBMITTED;
+        log("task_rd_submit %p -> SUBMITTED", task);
     }
     else
     {
         if (task->task_rd->rd_allocated)
         {
+            log("task_rd_submit %p releasing resources", task);
             resource_desc_release(task->task_rd);
         }
 
         task->task_rd->rd_cb = task_resource_allocated;
         task->task_state = TS_FILLING;
+        log("task_rd_submit %p -> FILLING", task);
     }
 
     resource_desc_submit(task->task_rd);

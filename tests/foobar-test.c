@@ -20,7 +20,7 @@ void task0_done(task_t *task)
     static int run_count = 1;
     foo_t *foo = task_rd_get_data(task, 0);
 
-    log("running task0 [%d], got %d", run_count, *foo);
+    log("running task0(%p) [%d], got %d", task, run_count, *foo);
 
     task->task_cb_data = (void *)(uintptr_t)*foo;
 
@@ -39,7 +39,7 @@ void task0_fill(task_t *task)
 {
     foo_t *foo = task_rd_get_data(task, 0);
 
-    log("filling task0");
+    log("filling task0(%p)", task);
 
     // fill foo request
     *foo = (foo_t)(uintptr_t)task->task_cb_data;
@@ -56,7 +56,7 @@ void task0_submit(task_t *task)
 
     task->task_cb_data = (void *)(uintptr_t)'A';
 
-    log("task0_submit");
+    log("task0_submit(%p)", task);
 
     task_rd_set_type(task, 0, RT_FOO);
 
@@ -69,7 +69,7 @@ void task1_done(task_t *task)
     bar_t *bar = task_rd_get_data(task, 0);
     bar_t *bar1 = task_rd_get_data(task, 1);
 
-    log("running task1 [%d], got %d", run_count, *bar, *bar1);
+    log("running task1(%p) [%d], got %d", task, run_count, *bar, *bar1);
 
     if (run_count++ < 10)
     {
@@ -87,7 +87,7 @@ void task1_fill(task_t *task)
     bar_t *bar = task_rd_get_data(task, 0);
     bar_t *bar1 = task_rd_get_data(task, 1);
 
-    log("filling task1");
+    log("filling task1(%p)", task);
 
     // fill foo request
     *bar = 654;
@@ -103,7 +103,7 @@ void task1_submit(task_t *task)
     int rc = task_rd_new(task, 2);
     assert(!rc);
 
-    log("task1_submit");
+    log("task1_submit(%p)", task);
 
     task_rd_set_type(task, 0, RT_BAR);
     task_rd_set_type(task, 1, RT_BAR);
@@ -117,7 +117,7 @@ void task2_done(task_t *task)
     foo_t *foo = task_rd_get_data(task, 0);
     bar_t *bar = task_rd_get_data(task, 1);
 
-    log("running task2 [%d], got %c %d", run_count, *foo, *bar);
+    log("running task2(%p) [%d], got %c %d", task, run_count, *foo, *bar);
 
     struct foobar_data *fbd = task->task_cb_data;
     fbd->foo = *foo;
@@ -130,6 +130,7 @@ void task2_done(task_t *task)
     }
     else
     {
+        free(fbd);
         task_rd_done(task);
     }
 }
@@ -139,7 +140,7 @@ void task2_fill(task_t *task)
     foo_t *foo = task_rd_get_data(task, 0);
     bar_t *bar = task_rd_get_data(task, 1);
 
-    log("filling task2");
+    log("filling task2(%p)", task);
     struct foobar_data *fbd = task->task_cb_data;
     *foo = fbd->foo;
     *bar = fbd->bar;
@@ -154,7 +155,7 @@ void task2_submit(task_t *task)
     int rc = task_rd_new(task, 2);
     assert(!rc);
 
-    log("task2_submit");
+    log("task2_submit(%p)", task);
 
     struct foobar_data *fbd = malloc(sizeof(struct foobar_data));
     fbd->foo = 'a';
@@ -175,9 +176,6 @@ void task_create_cb(res_desc_t *desc)
     task0_submit(desc->rd_data_list[0]);
     task1_submit(desc->rd_data_list[1]);
     task2_submit(desc->rd_data_list[2]);
-
-    log("running task_start");
-    task_start();
 }
 
 int main()
@@ -189,6 +187,11 @@ int main()
     desc->rd_cb = task_create_cb;
 
     resource_desc_submit(desc);
+
+    resource_poll();
+
+    log("running task_start");
+    task_start();
 
     resource_desc_done(desc);
 

@@ -11,11 +11,13 @@
 res_desc_t *queue_head = NULL;
 res_desc_t *queue_tail = NULL;
 
+void print_resource_queue();
+
 bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 {
     int type_count[RT_MAX] = {0};
 
-    fprintf(stderr, "resource_desc_count_check: ");
+    //fprintf(stderr, "resource_desc_count_check: ");
     for (int i = 0; i < desc->rd_count; i++)
     {
         enum resource_type type = desc->rd_type_list[i];
@@ -29,16 +31,16 @@ bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 
         int tgt_count = check_free ? rp->rp_free_count : rp->rp_count;
 
-        fprintf(stderr, "rp_free %d / rp_count %d rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
+        //fprintf(stderr, "rp_free %d / rp_count %d rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
 
         if (type_count[type] > tgt_count)
         {
-            fprintf(stderr, "abort\n");
+            //fprintf(stderr, "abort\n");
             return false;
         }
     }
 
-    fprintf(stderr, "ok\n");
+    //fprintf(stderr, "ok\n");
     return true;
 }
 
@@ -97,24 +99,16 @@ int resource_desc_alloc_submit(res_desc_t *res)
 
     if (!queue_tail)
     {
-        log("calling resource_desc_fill");
-        rc = resource_desc_fill(res);
-        if (rc == -EAGAIN)
-        {
-            log("queuing resource fill req to head");
-            queue_head = queue_tail = res;
-        }
-        else
-        {
-            log("completing resource fill req");
-            res->rd_cb(res);
-        }
+        log("resource_desc_alloc_submit - %p (task %p) q head | head %p tail %p", res, res->rd_cb_data, queue_head, queue_tail);
+        queue_head = queue_tail = res;
     }
     else
     {
-        log("queuing resource fill req to tail");
+        log("resource_desc_alloc_submit - %p (task %p) q tail | head %p tail %p", res, res->rd_cb_data, queue_head, queue_tail);
         queue_tail->rd_next = res;
+        queue_tail = res;
     }
+    print_resource_queue();
 
     return 0;
 }
@@ -141,30 +135,48 @@ int resource_desc_submit(res_desc_t *res)
 
 void print_res_desc(res_desc_t *desc)
 {
-    log("desc[%p]\n");
+    fprintf(stderr, "print_res_desc: [%p] cb_data %p next %p ", desc, desc->rd_cb_data, desc->rd_next);
+    int type_count[RT_MAX] = {0};
+    for (int i = 0; i < desc->rd_count; i++)
+    {
+        enum resource_type type = desc->rd_type_list[i];
+        struct resource_pool *rp = resource_pool_get_by_type(type);
+        if (!rp)
+        {
+            log("error getting rp");
+            return;
+        }
+
+        type_count[type]++;
+
+        fprintf(stderr, "rp_free %d / rp_count %d rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
+    }
+
+    fprintf(stderr, "\n");
 }
 
 int poll_count = 0;
 int resource_desc_alloc_poll()
 {
     res_desc_t *next = queue_head;
-    res_desc_t **next_ptr = &queue_head;
+    res_desc_t *prev = NULL;
 
     poll_count++;
 
     int rc;
     int q_count = 0;
+
     while (next && (rc = resource_desc_fill(next)) == -EAGAIN)
     {
         q_count++;
-        if (poll_count == 100)
-        {
-            print_res_desc(next);
-            log("resource allocation stalled, %d requests in queue", q_count);
-        }
 
-        next_ptr = &next->rd_next;
+        prev = next;
         next = next->rd_next;
+    }
+    if (poll_count == 100)
+    {
+        log("resource_desc_alloc_poll - resource allocation stalled, %d requests in queue | head %p tail %p", q_count, queue_head, queue_tail);
+        print_resource_queue();
     }
 
     if (!next)
@@ -177,12 +189,39 @@ int resource_desc_alloc_poll()
         return rc;
     }
 
+    log("resource_desc_alloc_poll - %p (data %p) running cb", next, next->rd_cb_data);
+    if (queue_head == next)
+    {
+        queue_head = next->rd_next;
+    }
+    else
+    {
+        ASSERT(prev);
+        prev->rd_next = next->rd_next;
+    }
+
+    if (queue_tail == next)
+    {
+        queue_tail = prev;
+    }
+    print_resource_queue();
+
     next->rd_cb(next);
-    *next_ptr = next->rd_next;
 
     poll_count = 0;
 
     return 1;
+}
+
+void print_resource_queue()
+{
+    res_desc_t *node = queue_head;
+    log("resource queue | head %p tail %p --", queue_head, queue_tail);
+    while (node)
+    {
+        print_res_desc(node);
+        node = node->rd_next;
+    }
 }
 
 int resource_poll()
@@ -232,7 +271,7 @@ void resource_desc_children_submit(res_desc_t *desc)
 
         if (rp->rp_submit)
         {
-            log("submitting resource %p type %d", desc->rd_data_list[i], desc->rd_type_list[i]);
+            log("resource_desc_children_submit - desc %p task %p res %p type %d", desc, desc->rd_cb_data, desc->rd_data_list[i], desc->rd_type_list[i]);
             rp->rp_submit(desc->rd_data_list[i], desc);
         }
         else

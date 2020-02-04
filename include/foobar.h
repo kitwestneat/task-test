@@ -4,8 +4,8 @@
 #include <time.h>
 #include "resource.h"
 
-#define FOO_LATENCY 100
-#define BAR_LATENCY 250
+#define FOO_LATENCY 45
+#define BAR_LATENCY 110
 
 #define FOO_VAL 1
 #define BAR_VAL -2
