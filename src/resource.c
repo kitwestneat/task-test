@@ -17,7 +17,6 @@ bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 {
     int type_count[RT_MAX] = {0};
 
-    //fprintf(stderr, "resource_desc_count_check: ");
     for (int i = 0; i < desc->rd_count; i++)
     {
         enum resource_type type = desc->rd_type_list[i];
@@ -31,16 +30,12 @@ bool resource_desc_count_check(res_desc_t *desc, bool check_free)
 
         int tgt_count = check_free ? rp->rp_free_count : rp->rp_count;
 
-        //fprintf(stderr, "rp_free %d / rp_count %d rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
-
         if (type_count[type] > tgt_count)
         {
-            //fprintf(stderr, "abort\n");
             return false;
         }
     }
 
-    //fprintf(stderr, "ok\n");
     return true;
 }
 
@@ -85,6 +80,25 @@ void resource_desc_release(res_desc_t *desc)
     desc->rd_allocated = false;
 }
 
+static void push_resource(res_desc_t *res)
+{
+    res->rd_next = NULL;
+
+    if (!queue_tail)
+    {
+        log("push_resource - %p (task %p) q head | head %p tail %p", res, res->rd_cb_data, queue_head, queue_tail);
+        queue_head = queue_tail = res;
+    }
+    else
+    {
+        log("push_resource - %p (task %p) q tail | head %p tail %p", res, res->rd_cb_data, queue_head, queue_tail);
+        queue_tail->rd_next = res;
+        queue_tail = res;
+    }
+
+    print_resource_queue();
+}
+
 int resource_desc_alloc_submit(res_desc_t *res)
 {
     int rc;
@@ -95,20 +109,7 @@ int resource_desc_alloc_submit(res_desc_t *res)
         return -E2BIG;
     }
 
-    res->rd_next = NULL;
-
-    if (!queue_tail)
-    {
-        log("resource_desc_alloc_submit - %p (task %p) q head | head %p tail %p", res, res->rd_cb_data, queue_head, queue_tail);
-        queue_head = queue_tail = res;
-    }
-    else
-    {
-        log("resource_desc_alloc_submit - %p (task %p) q tail | head %p tail %p", res, res->rd_cb_data, queue_head, queue_tail);
-        queue_tail->rd_next = res;
-        queue_tail = res;
-    }
-    print_resource_queue();
+    push_resource(res);
 
     return 0;
 }
@@ -155,6 +156,29 @@ void print_res_desc(res_desc_t *desc)
     fprintf(stderr, "\n");
 }
 
+void dequeue_next_resource(res_desc_t *prev)
+{
+    res_desc_t *node;
+
+    if (prev)
+    {
+        node = prev->rd_next;
+        prev->rd_next = node->rd_next;
+    }
+    else
+    {
+        node = queue_head;
+        queue_head = node->rd_next;
+    }
+
+    if (queue_tail == node)
+    {
+        queue_tail = prev;
+    }
+
+    print_resource_queue();
+}
+
 int poll_count = 0;
 int resource_desc_alloc_poll()
 {
@@ -190,21 +214,7 @@ int resource_desc_alloc_poll()
     }
 
     log("resource_desc_alloc_poll - %p (data %p) running cb", next, next->rd_cb_data);
-    if (queue_head == next)
-    {
-        queue_head = next->rd_next;
-    }
-    else
-    {
-        ASSERT(prev);
-        prev->rd_next = next->rd_next;
-    }
-
-    if (queue_tail == next)
-    {
-        queue_tail = prev;
-    }
-    print_resource_queue();
+    dequeue_next_resource(prev);
 
     next->rd_cb(next);
 
