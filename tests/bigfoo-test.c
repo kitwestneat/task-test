@@ -1,32 +1,36 @@
 #include <assert.h>
+#include <stdlib.h>
 
 #include "log.h"
 #include "task.h"
 #include "resource.h"
 
-#define TEST_FOO_COUNT 42
+#define BIGFOO_COUNT 42
 
-void task0_loop(task_t *task)
+void task0_fill(task_t *task);
+
+void task0_done(task_t *task)
 {
     static int run_count = 1;
+    foo_t *data = task->task_cb_data;
 
-    log("running task0 [%d], got: ", run_count);
-    printf(" - ");
-    for (int i = 0; i < TEST_FOO_COUNT; i++)
+    for (int i = 0; i < BIGFOO_COUNT; i++)
     {
         foo_t *foo = task_rd_get_data(task, i);
-        printf("%c ", *foo);
+        data[i] = ((*foo - 'A') % 26) + 'A';
     }
-    printf("\n");
+
+    log("running task0 [%d], got %.*s", run_count, BIGFOO_COUNT, data);
 
     if (run_count++ < 10)
     {
         // re-submit task
-        task_submit(task);
+        task_submit(task, task0_fill);
     }
     else
     {
         task_rd_done(task);
+        free(data);
     }
 }
 
@@ -35,42 +39,46 @@ void task0_fill(task_t *task)
 
     log("filling task0");
 
+    foo_t *data = task->task_cb_data;
+
     // fill foo request
-    for (int i = 0; i < TEST_FOO_COUNT; i++)
+    for (int i = 0; i < BIGFOO_COUNT; i++)
     {
-        foo_t *foo = task_rd_get_data(task, 0);
-        *foo = 'A';
+        foo_t *foo = task_rd_get_data(task, i);
+        *foo = data[i];
     }
 
-    task->task_cb = task0_loop;
-
     // submit task
-    task_submit(task);
+    task_submit(task, task0_done);
 }
 
 // foo pusher
 void task0_submit(task_t *task)
 {
-    int rc = task_rd_new(task, TEST_FOO_COUNT);
+    int rc = task_rd_new(task, BIGFOO_COUNT);
     assert(!rc);
 
-    log("task0_submit");
+    task->task_cb_data = malloc(sizeof(foo_t) * BIGFOO_COUNT);
 
-    for (int i = 0; i < TEST_FOO_COUNT; i++)
+    foo_t *data = task->task_cb_data;
+
+    for (int i = 0; i < BIGFOO_COUNT; i++)
     {
-        task_rd_set_type(task, 0, RT_FOO);
+        data[i] = 'A' + (i % 26);
+        task_rd_set_type(task, i, RT_FOO);
     }
 
-    task->task_cb = task0_fill;
-
-    task_submit(task);
+    log("task0_submit, data %.*s", BIGFOO_COUNT, data);
+    task_submit(task, task0_fill);
 }
 
 void task_create_cb(res_desc_t *desc)
 {
-    log("task created [%p], submitting task0", desc->rd_data_list[0]);
+    log("tasks created [%p,%p,%p], submitting task0", desc->rd_data_list[0], desc->rd_data_list[1], desc->rd_data_list[2]);
 
     task0_submit(desc->rd_data_list[0]);
+    //task1_submit(desc->rd_data_list[1]);
+    //task2_submit(desc->rd_data_list[2]);
 
     log("running task_start");
     task_start();
@@ -80,11 +88,16 @@ int main()
 {
     resource_pool_init();
 
-    res_desc_t *desc = resource_desc_new(1);
-    desc->rd_type_list[0] = RT_TASK;
+    res_desc_t *desc = resource_desc_new(3);
+    desc->rd_type_list[0] = desc->rd_type_list[1] = desc->rd_type_list[2] = RT_TASK;
     desc->rd_cb = task_create_cb;
 
     resource_desc_submit(desc);
+
+    resource_poll();
+
+    log("running task_start");
+    task_start();
 
     resource_desc_done(desc);
 

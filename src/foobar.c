@@ -143,11 +143,12 @@ int foo_poll()
   ASSERT(node->fbq_resource);
 
   foo_t *foo_ptr = node->fbq_resource;
+  foo_t val = *foo_ptr;
 
   // do the fake work
-  *foo_ptr += FOO_VAL;
+  *foo_ptr = val + FOO_VAL;
 
-  log("foo_poll - freeing %p (task %p), head %p tail %p", node, node->fbq_desc->rd_cb_data, foo_queue_head, foo_queue_tail);
+  log("foo_poll - freeing %p[new=%c, old=%c (%p)] (task %p), head %p tail %p", node, *foo_ptr, val, foo_ptr, node->fbq_desc->rd_cb_data, foo_queue_head, foo_queue_tail);
   print_foobar_queues();
   struct resource_descriptor *desc = node->fbq_desc;
   free(node);

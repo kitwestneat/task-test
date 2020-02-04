@@ -76,6 +76,11 @@ int main()
 
     resource_desc_submit(desc);
 
+    resource_poll();
+
+    log("running task_start");
+    task_start();
+
     resource_desc_done(desc);
 
     resource_pool_fini();
