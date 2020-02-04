@@ -119,7 +119,7 @@ static void task_sleep()
     usleep(200);
 }
 
-void task_start()
+void task_loop()
 {
     while (tasks_alive)
     {
@@ -128,4 +128,28 @@ void task_start()
             task_sleep();
         }
     }
+}
+
+void task_init(size_t count, desc_cb_t cb)
+{
+    resource_pool_init();
+
+    res_desc_t *desc = resource_desc_new(count);
+
+    for (int i = 0; i < count; i++)
+    {
+        desc->rd_type_list[i] = RT_TASK;
+    }
+    desc->rd_cb = cb;
+
+    resource_desc_submit(desc);
+
+    resource_poll();
+
+    log("running task_loop");
+    task_loop();
+
+    resource_desc_done(desc);
+
+    resource_pool_fini();
 }

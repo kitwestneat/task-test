@@ -36,6 +36,7 @@ void task_rd_set_type(task_t *task, int slot, enum resource_type type);
 void *task_rd_get_data(task_t *task, int slot);
 
 void task_submit(task_t *task, task_cb_t next);
-void task_start();
+
+void task_init(size_t count, desc_cb_t cb);
 
 #endif

@@ -180,20 +180,5 @@ void task_create_cb(res_desc_t *desc)
 
 int main()
 {
-    resource_pool_init();
-
-    res_desc_t *desc = resource_desc_new(3);
-    desc->rd_type_list[0] = desc->rd_type_list[1] = desc->rd_type_list[2] = RT_TASK;
-    desc->rd_cb = task_create_cb;
-
-    resource_desc_submit(desc);
-
-    resource_poll();
-
-    log("running task_start");
-    task_start();
-
-    resource_desc_done(desc);
-
-    resource_pool_fini();
+    task_init(3, task_create_cb);
 }
