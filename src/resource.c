@@ -150,7 +150,7 @@ void print_res_desc(res_desc_t *desc)
 
         type_count[type]++;
 
-        fprintf(stderr, "rp_free %d / rp_count %d rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
+        fprintf(stderr, "rp_free %zu / rp_count %zu rq %d | ", rp->rp_free_count, rp->rp_count, type_count[type]);
     }
 
     fprintf(stderr, "\n");

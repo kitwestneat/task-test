@@ -52,7 +52,7 @@ void task_resource_done(struct resource_descriptor *desc)
     task_t *task = desc->rd_cb_data;
     task->task_resource_done_count++;
 
-    log("task_resource_done %p: done %d total %d | %s", task, task->task_resource_done_count, desc->rd_count,
+    log("task_resource_done %p: done %zu total %zu | %s", task, task->task_resource_done_count, desc->rd_count,
         (task->task_resource_done_count == desc->rd_count) ? "running cb" : "waiting");
 
     if (task->task_resource_done_count == desc->rd_count)

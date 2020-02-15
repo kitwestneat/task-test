@@ -159,6 +159,8 @@ struct resource_pool *resource_pool_get_by_type(enum resource_type type)
     return NULL;
   }
   assert(rp);
+
+  return rp;
 }
 
 void resource_pool_init()

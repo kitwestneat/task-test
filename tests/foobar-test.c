@@ -69,7 +69,7 @@ void task1_done(task_t *task)
     bar_t *bar = task_rd_get_data(task, 0);
     bar_t *bar1 = task_rd_get_data(task, 1);
 
-    log("running task1(%p) [%d], got %d", task, run_count, *bar, *bar1);
+    log("running task1(%p) [%d], got %lu %lu", task, run_count, *bar, *bar1);
 
     if (run_count++ < 10)
     {
@@ -117,7 +117,7 @@ void task2_done(task_t *task)
     foo_t *foo = task_rd_get_data(task, 0);
     bar_t *bar = task_rd_get_data(task, 1);
 
-    log("running task2(%p) [%d], got %c %d", task, run_count, *foo, *bar);
+    log("running task2(%p) [%d], got %c %lu", task, run_count, *foo, *bar);
 
     struct foobar_data *fbd = task->task_cb_data;
     fbd->foo = *foo;
