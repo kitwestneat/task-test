@@ -15,6 +15,7 @@ enum resource_type
     RT_INVAL = 0,
     RT_TASK = 1,
     RT_TCP,
+    RT_DISK,
     RT_MAX,
 };
 

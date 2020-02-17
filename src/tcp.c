@@ -11,6 +11,7 @@
 
 #include "tcp.h"
 #include "log.h"
+#include "misc.h"
 
 #define TCP_PORT 1701
 #define URING_ENTRIES 32
@@ -23,12 +24,6 @@ peer_list_head = LIST_HEAD_INITIALIZER(peer_list_head);
  */
 
 struct tcp_cm cm;
-
-// is power of 2
-bool is_valid_uring_rq_nr(int nr)
-{
-    return nr && (!(nr & (nr - 1)));
-}
 
 int tcp_listen()
 {
@@ -134,7 +129,7 @@ int tcp_cm_poll()
     return 1;
 }
 
-void process_peer_cqe(tcp_peer_t *peer, struct io_uring_cqe *cqe)
+void peer_process_cqe(tcp_peer_t *peer, struct io_uring_cqe *cqe)
 {
     tcp_rq_t *rq = io_uring_cqe_get_data(cqe);
     rq->trq_res = cqe->res;
@@ -160,7 +155,7 @@ int tcp_poll()
         rc = io_uring_peek_cqe(&peer->tp_ring, &cqe);
         if (rc == 0)
         {
-            process_peer_cqe(peer, cqe);
+            peer_process_cqe(peer, cqe);
 
             return 1;
         }

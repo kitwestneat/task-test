@@ -6,21 +6,27 @@ project(uring-test)
 include_directories(include)
 set(CMAKE_BUILD_TYPE Debug)
 
-add_executable(tcp-test
-	tests/tcp-test.c
-	src/tcp.c
-    include/log.h
-	include/tcp.h
-)
-target_link_libraries(tcp-test uring)
-
-add_executable(echo-test
-	tests/echo-test.c
+set(libsrc 
+	src/task.c
 	src/resource.c
 	src/resource_pool.c
+	src/disk.c
 	src/tcp.c
-    include/log.h
+  include/log.h
+	include/disk.h
 	include/tcp.h
+	include/task.h
 	include/resource.h
 )
-target_link_libraries(echo-test uring)
+
+macro(TestApp name)
+	add_executable(${name}
+		tests/${name}.c
+		${libsrc}
+	)
+	target_link_libraries(${name} uring)
+endmacro()
+
+testapp(tcp-test)
+testapp(echo-test)
+testapp(disk-test)
