@@ -4,10 +4,10 @@
 #include "task.h"
 #include "foobar.h"
 #include "resource.h"
+#include "tcp.h"
 
 struct resource_pool *task_pool;
-struct resource_pool *foo_pool;
-struct resource_pool *bar_pool;
+struct resource_pool *tcp_pool;
 
 unsigned char *bitmap_new(size_t count)
 {
@@ -76,11 +76,8 @@ size_t resource_pool_get_obj_size(enum resource_type type)
   case RT_TASK:
     obj_size = sizeof(struct task);
     break;
-  case RT_FOO:
-    obj_size = sizeof(foo_t);
-    break;
-  case RT_BAR:
-    obj_size = sizeof(bar_t);
+  case RT_TCP:
+    obj_size = sizeof(tcp_rq_t);
     break;
   default:
     break;
@@ -113,17 +110,13 @@ struct resource_pool *resource_pool_new(enum resource_type type, size_t count)
 
   switch (type)
   {
-  case RT_FOO:
-    rp->rp_submit = foo_submit;
-    rp->rp_poll = foo_poll;
-    break;
   case RT_TASK:
     rp->rp_submit = NULL;
     rp->rp_poll = NULL;
     break;
-  case RT_BAR:
-    rp->rp_submit = bar_submit;
-    rp->rp_poll = bar_poll;
+  case RT_TCP:
+    rp->rp_submit = (resource_submit_fn_t)tcp_rq_submit;
+    rp->rp_poll = tcp_poll;
     break;
   default:
     log("unknown resource type %d", type);
@@ -148,14 +141,11 @@ struct resource_pool *resource_pool_get_by_type(enum resource_type type)
   case RT_TASK:
     rp = task_pool;
     break;
-  case RT_FOO:
-    rp = foo_pool;
-    break;
-  case RT_BAR:
-    rp = bar_pool;
+  case RT_TCP:
+    rp = tcp_pool;
     break;
   default:
-    log("unknown task type %d", type);
+    log("unknown resource type %d", type);
     return NULL;
   }
   assert(rp);
@@ -166,17 +156,15 @@ struct resource_pool *resource_pool_get_by_type(enum resource_type type)
 void resource_pool_init()
 {
   task_pool = resource_pool_new(RT_TASK, TASK_COUNT);
-  foo_pool = resource_pool_new(RT_FOO, FOO_COUNT);
-  bar_pool = resource_pool_new(RT_BAR, BAR_COUNT);
+  tcp_pool = resource_pool_new(RT_TCP, TCP_COUNT);
 
-  log("resource pools created: %p %p %p", task_pool, foo_pool, bar_pool);
+  log("resource pools created: %p %p", task_pool, tcp_pool);
 }
 
 void resource_pool_fini()
 {
   resource_pool_done(task_pool);
-  resource_pool_done(foo_pool);
-  resource_pool_done(bar_pool);
+  resource_pool_done(tcp_pool);
 }
 
 void *resource_pool_alloc_obj(struct resource_pool *rp)

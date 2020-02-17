@@ -8,18 +8,15 @@
 #define TASK_COUNT 6
 #define FOO_COUNT 50
 #define BAR_COUNT 2
+#define TCP_COUNT 2
 
 enum resource_type
 {
     RT_INVAL = 0,
     RT_TASK = 1,
-    RT_FOO,
-    RT_BAR,
+    RT_TCP,
     RT_MAX,
 };
-
-typedef uint8_t foo_t;
-typedef uint64_t bar_t;
 
 struct resource_descriptor;
 typedef void (*desc_cb_t)(struct resource_descriptor *desc);
@@ -37,7 +34,7 @@ typedef struct resource_descriptor
     enum resource_type rd_type_list[];
 } res_desc_t;
 
-typedef void (*resource_submit_fn_t)(void *resource, res_desc_t *desc);
+typedef void (*resource_submit_fn_t)(void *resource);
 
 struct resource_pool
 {

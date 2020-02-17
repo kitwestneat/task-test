@@ -282,7 +282,7 @@ void resource_desc_children_submit(res_desc_t *desc)
         if (rp->rp_submit)
         {
             log("resource_desc_children_submit - desc %p task %p res %p type %d", desc, desc->rd_cb_data, desc->rd_data_list[i], desc->rd_type_list[i]);
-            rp->rp_submit(desc->rd_data_list[i], desc);
+            rp->rp_submit(desc->rd_data_list[i]);
         }
         else
         {
