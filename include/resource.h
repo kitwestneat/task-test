@@ -6,8 +6,7 @@
 #include <stddef.h>
 
 #define TASK_COUNT 6
-#define FOO_COUNT 50
-#define BAR_COUNT 2
+#define DISK_COUNT 50
 #define TCP_COUNT 2
 
 enum resource_type
@@ -35,7 +34,7 @@ typedef struct resource_descriptor
     enum resource_type rd_type_list[];
 } res_desc_t;
 
-typedef void (*resource_submit_fn_t)(void *resource);
+typedef void (*resource_submit_fn_t)(void *resource, res_desc_t *desc);
 
 struct resource_pool
 {

@@ -12,8 +12,10 @@ typedef struct tcp_peer
 {
     int tp_sockfd;
     struct io_uring tp_ring;
+
     uint8_t tp_in_flight;
     struct sockaddr_in tp_addr;
+
     LIST_ENTRY(tcp_peer)
     tp_list_entry;
 } tcp_peer_t;
@@ -48,9 +50,12 @@ typedef struct tcp_rq
     struct iovec *trq_iov;
 } tcp_rq_t;
 
-int tcp_init(peer_event_cb_t on_peer_add);
+int tcp_init();
+void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add);
 int tcp_poll();
 tcp_rq_t *tcp_rq_new(enum trq_type type, tcp_peer_t *peer, size_t iov_count);
 void tcp_rq_peer_init(tcp_rq_t *rq, enum trq_type type, tcp_peer_t *peer, size_t iov_count);
 void tcp_rq_submit(tcp_rq_t *rq);
+
+void tcp_rq_iov_alloc(tcp_rq_t *rq, size_t count);
 #endif

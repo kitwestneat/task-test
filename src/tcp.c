@@ -78,11 +78,14 @@ int tcp_listen()
     return 0;
 }
 
-int tcp_init(peer_event_cb_t on_peer_add)
+void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add)
+{
+    cm.tcm_on_peer_add = on_peer_add;
+}
+
+int tcp_init()
 {
     LIST_INIT(&peer_list_head);
-
-    cm.tcm_on_peer_add = on_peer_add;
 
     return tcp_listen();
 }

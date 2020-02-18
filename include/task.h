@@ -38,5 +38,8 @@ void *task_rd_get_data(task_t *task, int slot);
 void task_submit(task_t *task, task_cb_t next);
 
 void task_init(size_t count, desc_cb_t cb);
+void task_get_one(desc_cb_t cb, void *cb_data);
+void task_loop_watch(int *tasks_alive_ptr);
+void task_loop();
 
 #endif

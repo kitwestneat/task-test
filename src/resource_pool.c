@@ -2,12 +2,13 @@
 #include <string.h>
 #include "log.h"
 #include "task.h"
-#include "foobar.h"
+#include "disk.h"
 #include "resource.h"
 #include "tcp.h"
 
 struct resource_pool *task_pool;
 struct resource_pool *tcp_pool;
+struct resource_pool *disk_pool;
 
 unsigned char *bitmap_new(size_t count)
 {
@@ -79,6 +80,9 @@ size_t resource_pool_get_obj_size(enum resource_type type)
   case RT_TCP:
     obj_size = sizeof(tcp_rq_t);
     break;
+  case RT_DISK:
+    obj_size = sizeof(tcp_rq_t);
+    break;
   default:
     break;
   }
@@ -95,6 +99,38 @@ unsigned resource_pool_get_index(struct resource_pool *rp, void *obj)
   assert(obj >= rp_obj_base);
 
   return (obj - rp_obj_base) / obj_size;
+}
+
+void disk_pool_cb(disk_rq_t *rq)
+{
+  res_desc_t *desc = rq->drq_cb_data;
+
+  desc->rd_cb(desc);
+}
+
+void disk_pool_submit(void *data, res_desc_t *desc)
+{
+  disk_rq_t *rq = data;
+  rq->drq_cb = disk_pool_cb;
+  rq->drq_cb_data = desc;
+
+  disk_rq_submit(rq);
+}
+
+void tcp_pool_cb(tcp_rq_t *rq)
+{
+  res_desc_t *desc = rq->trq_cb_data;
+
+  desc->rd_cb(desc);
+}
+
+void tcp_pool_submit(void *data, res_desc_t *desc)
+{
+  tcp_rq_t *rq = data;
+  rq->trq_cb = tcp_pool_cb;
+  rq->trq_cb_data = desc;
+
+  tcp_rq_submit(rq);
 }
 
 struct resource_pool *resource_pool_new(enum resource_type type, size_t count)
@@ -115,8 +151,12 @@ struct resource_pool *resource_pool_new(enum resource_type type, size_t count)
     rp->rp_poll = NULL;
     break;
   case RT_TCP:
-    rp->rp_submit = (resource_submit_fn_t)tcp_rq_submit;
+    rp->rp_submit = tcp_pool_submit;
     rp->rp_poll = tcp_poll;
+    break;
+  case RT_DISK:
+    rp->rp_submit = disk_pool_submit;
+    rp->rp_poll = disk_poll;
     break;
   default:
     log("unknown resource type %d", type);
@@ -144,6 +184,9 @@ struct resource_pool *resource_pool_get_by_type(enum resource_type type)
   case RT_TCP:
     rp = tcp_pool;
     break;
+  case RT_DISK:
+    rp = disk_pool;
+    break;
   default:
     log("unknown resource type %d", type);
     return NULL;
@@ -157,6 +200,10 @@ void resource_pool_init()
 {
   task_pool = resource_pool_new(RT_TASK, TASK_COUNT);
   tcp_pool = resource_pool_new(RT_TCP, TCP_COUNT);
+  disk_pool = resource_pool_new(RT_DISK, DISK_COUNT);
+
+  disk_init();
+  tcp_init();
 
   log("resource pools created: %p %p", task_pool, tcp_pool);
 }
