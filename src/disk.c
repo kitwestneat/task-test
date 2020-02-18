@@ -31,12 +31,15 @@ int disk_open(const char *fn, disk_t **disk)
     disk_t *disk_ptr;
     if (!disk)
     {
+        log("disk_ptr null");
         disk = &disk_ptr;
     }
 
+    log("disk_open: opening %s (%p)", fn, disk);
     int fd = open(fn, DISK_OPEN_FLAGS);
     if (fd < 0)
     {
+        log("disk_open: error opening %s, %m (%d)", fn, errno);
         return -errno;
     }
 
@@ -64,7 +67,9 @@ int disk_poll()
     {
         disk_rq_t *drq = io_uring_cqe_get_data(cqe);
         drq->drq_res = cqe->res;
+        io_uring_cqe_seen(&ring, cqe);
 
+        log("disk cqe seen, calling cb");
         drq->drq_cb(drq);
 
         return 1;

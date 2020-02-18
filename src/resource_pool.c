@@ -117,6 +117,15 @@ void disk_pool_submit(void *data, res_desc_t *desc)
   disk_rq_submit(rq);
 }
 
+void disk_pool_fini(void *data)
+{
+  disk_rq_t *rq = data;
+  if (rq->drq_iov)
+  {
+    free(rq->drq_iov);
+  }
+}
+
 void tcp_pool_cb(tcp_rq_t *rq)
 {
   res_desc_t *desc = rq->trq_cb_data;
@@ -131,6 +140,15 @@ void tcp_pool_submit(void *data, res_desc_t *desc)
   rq->trq_cb_data = desc;
 
   tcp_rq_submit(rq);
+}
+
+void tcp_pool_fini(void *data)
+{
+  tcp_rq_t *rq = data;
+  if (rq->trq_iov)
+  {
+    free(rq->trq_iov);
+  }
 }
 
 struct resource_pool *resource_pool_new(enum resource_type type, size_t count)
@@ -148,14 +166,17 @@ struct resource_pool *resource_pool_new(enum resource_type type, size_t count)
   {
   case RT_TASK:
     rp->rp_submit = NULL;
+    rp->rp_fini = NULL;
     rp->rp_poll = NULL;
     break;
   case RT_TCP:
     rp->rp_submit = tcp_pool_submit;
+    rp->rp_fini = tcp_pool_fini;
     rp->rp_poll = tcp_poll;
     break;
   case RT_DISK:
     rp->rp_submit = disk_pool_submit;
+    rp->rp_fini = disk_pool_fini;
     rp->rp_poll = disk_poll;
     break;
   default:

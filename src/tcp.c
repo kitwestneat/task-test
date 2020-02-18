@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <sys/socket.h>
@@ -110,6 +111,14 @@ int tcp_peer_add(int fd, struct sockaddr_in *addr)
     return 0;
 }
 
+void tcp_peer_free(tcp_peer_t *peer)
+{
+    close(peer->tp_sockfd);
+    LIST_REMOVE(peer, tp_list_entry);
+    io_uring_queue_exit(&peer->tp_ring);
+    free(peer);
+}
+
 int tcp_cm_poll()
 {
     struct sockaddr_in peer_addr;
@@ -137,6 +146,16 @@ void peer_process_cqe(tcp_peer_t *peer, struct io_uring_cqe *cqe)
     tcp_rq_t *rq = io_uring_cqe_get_data(cqe);
     rq->trq_res = cqe->res;
     io_uring_cqe_seen(&peer->tp_ring, cqe);
+
+    if (rq->trq_type == TRQ_BROADCAST)
+    {
+        rq->trq_bcast_cqs_left--;
+        log("bcast cqe seen, %d left", rq->trq_bcast_cqs_left);
+        if (rq->trq_bcast_cqs_left > 0)
+        {
+            return;
+        }
+    }
 
     log("cqe seen, calling cb");
     rq->trq_cb(rq);
@@ -167,11 +186,12 @@ int tcp_poll()
     return 0;
 }
 
-void tcp_rq_submit(tcp_rq_t *rq)
+void tcp_rq_rw(tcp_rq_t *rq)
 {
     struct io_uring *ring = &rq->trq_peer->tp_ring;
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+
     switch (rq->trq_type)
     {
     case TRQ_WRITE:
@@ -185,8 +205,38 @@ void tcp_rq_submit(tcp_rq_t *rq)
     }
 
     io_uring_sqe_set_data(sqe, rq);
-
     io_uring_submit(ring);
+}
+
+void tcp_rq_broadcast(tcp_rq_t *rq)
+{
+    tcp_peer_t *peer;
+    rq->trq_bcast_cqs_left = 0;
+
+    LIST_FOREACH(peer, &peer_list_head, tp_list_entry)
+    {
+        struct io_uring *ring = &peer->tp_ring;
+        struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+
+        io_uring_prep_writev(sqe, peer->tp_sockfd, rq->trq_iov, rq->trq_iov_count, 0);
+
+        io_uring_sqe_set_data(sqe, rq);
+        io_uring_submit(ring);
+
+        rq->trq_bcast_cqs_left++;
+    }
+}
+
+void tcp_rq_submit(tcp_rq_t *rq)
+{
+    if (rq->trq_type == TRQ_BROADCAST)
+    {
+        tcp_rq_broadcast(rq);
+    }
+    else
+    {
+        tcp_rq_rw(rq);
+    }
 }
 
 tcp_rq_t *tcp_rq_new(enum trq_type type, tcp_peer_t *peer, size_t iov_count)

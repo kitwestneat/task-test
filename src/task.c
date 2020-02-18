@@ -16,13 +16,18 @@ int task_rd_new(task_t *task, size_t count)
     return 0;
 }
 
-void task_rd_done(task_t *task)
+void task_rd_release(task_t *task)
 {
     ASSERT(task->task_rd);
 
     resource_desc_release(task->task_rd);
+}
 
+void task_rd_done(task_t *task)
+{
+    task_rd_release(task);
     resource_desc_done(task->task_rd);
+    task->task_rd = NULL;
 }
 
 void task_rd_set_type(task_t *task, int slot, enum resource_type type)
@@ -36,6 +41,7 @@ void task_rd_set_type(task_t *task, int slot, enum resource_type type)
 void *task_rd_get_data(task_t *task, int slot)
 {
     ASSERT(task->task_rd->rd_allocated);
+    ASSERT(slot < task->task_rd->rd_count);
 
     return task->task_rd->rd_data_list[slot];
 }

@@ -7,7 +7,7 @@
 
 #define TASK_COUNT 6
 #define DISK_COUNT 50
-#define TCP_COUNT 2
+#define TCP_COUNT 50
 
 enum resource_type
 {
@@ -41,6 +41,7 @@ struct resource_pool
     enum resource_type rp_type;
     resource_submit_fn_t rp_submit;
     int (*rp_poll)();
+    void (*rp_fini)(void *obj);
     size_t rp_count;
     size_t rp_free_count;
     unsigned char *rp_free_bitmap;

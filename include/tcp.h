@@ -32,6 +32,7 @@ enum trq_type
 {
     TRQ_READ = 0,
     TRQ_WRITE,
+    TRQ_BROADCAST,
 };
 
 struct tcp_rq;
@@ -40,7 +41,11 @@ typedef void (*trq_cb_fn_t)(struct tcp_rq *rq);
 typedef struct tcp_rq
 {
     enum trq_type trq_type;
-    tcp_peer_t *trq_peer;
+    union {
+        tcp_peer_t *trq_peer;
+        uintptr_t trq_bcast_cqs_left;
+    };
+
     int trq_res;
 
     trq_cb_fn_t trq_cb;
@@ -58,4 +63,5 @@ void tcp_rq_peer_init(tcp_rq_t *rq, enum trq_type type, tcp_peer_t *peer, size_t
 void tcp_rq_submit(tcp_rq_t *rq);
 
 void tcp_rq_iov_alloc(tcp_rq_t *rq, size_t count);
+void tcp_peer_free(tcp_peer_t *peer);
 #endif
