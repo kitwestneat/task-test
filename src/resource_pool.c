@@ -256,5 +256,11 @@ void resource_pool_put_obj(struct resource_pool *rp, void *obj)
 {
   unsigned rp_index = resource_pool_get_index(rp, obj);
   bitmap_dealloc(rp->rp_free_bitmap, rp_index);
+
+  if (rp->rp_fini)
+  {
+    rp->rp_fini(obj);
+  }
+
   rp->rp_free_count++;
 }
