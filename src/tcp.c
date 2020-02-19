@@ -13,6 +13,7 @@
 #include "tcp.h"
 #include "log.h"
 #include "misc.h"
+#include "event_svc.h"
 
 #define TCP_PORT 1701
 #define URING_ENTRIES 32
@@ -25,6 +26,7 @@ peer_list_head = LIST_HEAD_INITIALIZER(peer_list_head);
  */
 
 struct tcp_cm cm;
+int tcp_cm_poll();
 
 int tcp_listen()
 {
@@ -37,6 +39,8 @@ int tcp_listen()
     }
 
     cm.tcm_sockfd = rc;
+
+    event_svc_add(cm.tcm_sockfd, tcp_cm_poll);
 
     int enable = 1;
     rc = setsockopt(cm.tcm_sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
@@ -101,6 +105,8 @@ int tcp_peer_add(int fd, struct sockaddr_in *addr)
     peer->tp_in_flight = 0;
     LIST_INSERT_HEAD(&peer_list_head, peer, tp_list_entry);
 
+    event_svc_add(fd, tcp_poll);
+
     log("got connection: %s:%d", inet_ntoa(addr->sin_addr), addr->sin_port);
 
     if (cm.tcm_on_peer_add)
@@ -113,6 +119,8 @@ int tcp_peer_add(int fd, struct sockaddr_in *addr)
 
 void tcp_peer_free(tcp_peer_t *peer)
 {
+    event_svc_del(peer->tp_sockfd);
+
     close(peer->tp_sockfd);
     LIST_REMOVE(peer, tp_list_entry);
     io_uring_queue_exit(&peer->tp_ring);

@@ -5,6 +5,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include "event_svc.h"
 #include "disk.h"
 #include "log.h"
 #include "misc.h"
@@ -42,6 +43,8 @@ int disk_open(const char *fn, disk_t **disk)
         log("disk_open: error opening %s, %m (%d)", fn, errno);
         return -errno;
     }
+
+    event_svc_add(fd, disk_poll);
 
     *disk = malloc(sizeof(disk_t));
 

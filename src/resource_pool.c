@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include "event_svc.h"
 #include "log.h"
 #include "task.h"
 #include "disk.h"
@@ -223,6 +224,7 @@ void resource_pool_init()
   tcp_pool = resource_pool_new(RT_TCP, TCP_COUNT);
   disk_pool = resource_pool_new(RT_DISK, DISK_COUNT);
 
+  event_svc_init();
   disk_init();
   tcp_init();
 

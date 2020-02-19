@@ -3,6 +3,7 @@
 
 #include "task.h"
 #include "log.h"
+#include "event_svc.h"
 
 int tasks_alive = 0;
 
@@ -122,7 +123,17 @@ void task_submit(task_t *task, task_cb_t next)
 
 static void task_sleep()
 {
-    usleep(200);
+    static uint8_t i = 0;
+
+    i++;
+    if (i & 7)
+    {
+        usleep(200);
+    }
+    else
+    {
+        event_svc_wait();
+    }
 }
 
 void task_loop_watch(int *tasks_alive_ptr)
