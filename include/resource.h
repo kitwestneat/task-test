@@ -39,14 +39,17 @@ typedef void (*resource_submit_fn_t)(void *resource, res_desc_t *desc);
 struct resource_pool
 {
     enum resource_type rp_type;
+    size_t rp_obj_size;
+
     resource_submit_fn_t rp_submit;
     int (*rp_poll)();
     void (*rp_fini)(void *obj);
+
     size_t rp_count;
     size_t rp_free_count;
     unsigned char *rp_free_bitmap;
 
-    uint8_t rp_data[];
+    void *rp_data;
 };
 
 void resource_pool_init();

@@ -22,13 +22,25 @@ LIST_HEAD(peer_head_t, tcp_peer)
 peer_list_head = LIST_HEAD_INITIALIZER(peer_list_head);
 
 /**
- * XXX One uring to rule them all or one uring per connection? 
+ * XXX
+ * 
+ * One uring to rule them all or one uring per connection? 
  * - the memory needed for 1000s of connections is very high for uring per connection
  * - uring per connection gives a lot more flexibility in terms of limiting completions
  *   per connection (aka preventing certain connections from spawning tasks)
  * - could possibly put all task generating reads into a separate uring, then you could
  *   control task creation rate by limiting completion polling on that uring.
  * - task creation rate will also be limited by availablity of read buffers to post to socket
+ * 
+ * Also how to deal with buffer sizing?
+ * - essentially the peers need to match buffer sizes
+ * - if a peer sends a PUT cmd to another peer, it needs to post a bulk receive buffer, but
+ *   if the client sends its own cmd simultaneously, the bulk buffer could be filled with a
+ *   small cmd message.
+ * - perhaps bulk buffers could be proceeded with headers that are decoded, and then the buffer
+ *   would be immediately read into to ensure that bulk buffers are only used with bulk sends / recvs
+ * - alternatively, could create a second channel that would only post / receive bulk messages, tho
+ *   presumably the bulk buffers would all need to be a fixed size.
  */
 
 struct tcp_cm cm;

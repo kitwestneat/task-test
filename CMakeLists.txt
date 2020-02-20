@@ -13,6 +13,7 @@ set(libsrc
 	src/disk.c
 	src/tcp.c
 	src/event_svc.c
+	include/bitmap.h
 	include/log.h
 	include/disk.h
 	include/event_svc.h
