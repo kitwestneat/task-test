@@ -12,8 +12,10 @@ set(libsrc
 	src/resource_pool.c
 	src/disk.c
 	src/tcp.c
-  include/log.h
+	src/event_svc.c
+	include/log.h
 	include/disk.h
+	include/event_svc.h
 	include/tcp.h
 	include/task.h
 	include/resource.h

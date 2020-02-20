@@ -22,7 +22,13 @@ LIST_HEAD(peer_head_t, tcp_peer)
 peer_list_head = LIST_HEAD_INITIALIZER(peer_list_head);
 
 /**
- * XXX One uring to rule them all or one uring per connection? Probably need to do one per connection in order to be able to slow them down.
+ * XXX One uring to rule them all or one uring per connection? 
+ * - the memory needed for 1000s of connections is very high for uring per connection
+ * - uring per connection gives a lot more flexibility in terms of limiting completions
+ *   per connection (aka preventing certain connections from spawning tasks)
+ * - could possibly put all task generating reads into a separate uring, then you could
+ *   control task creation rate by limiting completion polling on that uring.
+ * - task creation rate will also be limited by availablity of read buffers to post to socket
  */
 
 struct tcp_cm cm;
@@ -180,18 +186,20 @@ int tcp_poll()
     tcp_peer_t *peer;
     struct io_uring_cqe *cqe;
 
+    int cqs_found = 0;
     LIST_FOREACH(peer, &peer_list_head, tp_list_entry)
     {
         rc = io_uring_peek_cqe(&peer->tp_ring, &cqe);
         if (rc == 0)
         {
             peer_process_cqe(peer, cqe);
+            cqs_found++;
 
-            return 1;
+            // don't return here because that could starve peers at end of list
         }
     }
 
-    return 0;
+    return cqs_found;
 }
 
 void tcp_rq_rw(tcp_rq_t *rq)
