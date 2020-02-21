@@ -9,6 +9,7 @@ set(CMAKE_BUILD_TYPE Debug)
 set(libsrc 
 	src/task.c
 	src/resource.c
+	src/tcp_resource.c
 	src/resource_pool.c
 	src/disk.c
 	src/tcp.c
@@ -34,3 +35,5 @@ testapp(tcp-test)
 testapp(echo-test)
 testapp(disk-test)
 testapp(chat-test)
+testapp(stride-cli-test)
+testapp(stride-srv-test)

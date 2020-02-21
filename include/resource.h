@@ -59,11 +59,17 @@ void resource_pool_put_obj(struct resource_pool *rp, void *obj);
 void resource_pool_fini();
 
 res_desc_t *resource_desc_new(size_t count);
-void resource_desc_done(res_desc_t *desc);
+void resource_get_one(enum resource_type type, desc_cb_t cb, void *cb_data);
 
 // try to allocate the resources in the descriptor
 int resource_desc_submit(res_desc_t *res);
+
+// release resources held by desc
 void resource_desc_release(res_desc_t *res);
+
+// free desc
+void resource_desc_done(res_desc_t *desc);
+
 int resource_poll();
 
 void resource_desc_children_submit(res_desc_t *desc);

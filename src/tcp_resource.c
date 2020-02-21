@@ -4,6 +4,19 @@
 #include "task.h"
 #include "log.h"
 
+/**
+ * XXX Functions to help with posting a read buffer to a new peer.
+ * 
+ * Conceptually it seems like there should be a task associated with each read request,
+ * but then that could be thousands of tasks, depending on the number of connections.
+ * These functions skirt that by directly allocating a tcp request object and only
+ * allocating a task when the read comes in. It then transfers ownership of the original
+ * read rq to the task.
+ * 
+ * - is it ok to just create a task for each peer?
+ * - alternatively, should the initial read buffer be handled outside the resource system?
+ */
+
 struct tcp_peer_read_data
 {
     union {

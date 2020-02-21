@@ -20,12 +20,12 @@ typedef struct task
 {
   enum task_state task_state;
   res_desc_t *task_rd;
+  res_desc_t *task_parent_desc;
   size_t task_resource_done_count;
 
   task_cb_t task_cb;
   void *task_cb_data;
   void *task_result;
-
 } task_t;
 
 void task_new(task_cb_t cb, void *task_cb_data);
