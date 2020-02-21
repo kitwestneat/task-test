@@ -154,14 +154,7 @@ void task_loop()
 
 void task_get_one(desc_cb_t cb, void *cb_data)
 {
-    res_desc_t *desc = resource_desc_new(1);
-    desc->rd_type_list[0] = RT_TASK;
-    desc->rd_cb = cb;
-    desc->rd_cb_data = cb_data;
-
-    resource_desc_submit(desc);
-
-    resource_poll();
+    resource_get_one(RT_TASK, cb, cb_data);
 }
 
 void task_init(size_t count, desc_cb_t cb)

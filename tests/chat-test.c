@@ -277,6 +277,7 @@ void on_peer_add(tcp_peer_t *peer)
 int main()
 {
     resource_pool_init();
+    tcp_listen();
 
     tcp_cm_set_on_peer_add(on_peer_add);
     int rc = disk_open("/tmp/chat.log", &log_disk);

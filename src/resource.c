@@ -290,3 +290,13 @@ void resource_desc_children_submit(res_desc_t *desc)
         }
     }
 }
+
+void resource_get_one(enum resource_type type, desc_cb_t cb, void *cb_data)
+{
+    res_desc_t *desc = resource_desc_new(1);
+    desc->rd_type_list[0] = type;
+    desc->rd_cb = cb;
+    desc->rd_cb_data = cb_data;
+
+    resource_desc_submit(desc);
+}

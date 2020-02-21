@@ -43,7 +43,7 @@ peer_list_head = LIST_HEAD_INITIALIZER(peer_list_head);
  *   presumably the bulk buffers would all need to be a fixed size.
  */
 
-struct tcp_cm cm;
+struct tcp_cm cm = {0};
 int tcp_cm_poll();
 
 int tcp_listen()
@@ -101,23 +101,14 @@ int tcp_listen()
     return 0;
 }
 
-void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add)
-{
-    cm.tcm_on_peer_add = on_peer_add;
-}
-
-int tcp_init()
-{
-    LIST_INIT(&peer_list_head);
-
-    return tcp_listen();
-}
-
-int tcp_peer_add(int fd, struct sockaddr_in *addr)
+tcp_peer_t *tcp_peer_add(int fd, struct sockaddr_in *addr)
 {
     tcp_peer_t *peer = malloc(sizeof(tcp_peer_t));
 
     memcpy(&peer->tp_addr, addr, sizeof(struct sockaddr_in));
+
+    log("initializing ring for %p: %p", peer, &peer->tp_ring);
+
     io_uring_queue_init(URING_ENTRIES, &peer->tp_ring, 0);
     peer->tp_sockfd = fd;
     peer->tp_in_flight = 0;
@@ -127,12 +118,44 @@ int tcp_peer_add(int fd, struct sockaddr_in *addr)
 
     log("got connection: %s:%d", inet_ntoa(addr->sin_addr), addr->sin_port);
 
-    if (cm.tcm_on_peer_add)
+    return peer;
+}
+
+tcp_peer_t *tcp_connect(char *addr_str, int port)
+{
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
     {
-        cm.tcm_on_peer_add(peer);
+        log("tcp_connect: socket() = %m");
+
+        return 0;
     }
 
-    return 0;
+    struct sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(TCP_PORT);
+    inet_pton(AF_INET, addr_str, &addr.sin_addr);
+
+    int rc = connect(fd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    if (rc < 0)
+    {
+        log("tcp_connect: connect() = %m");
+
+        return 0;
+    }
+
+    return tcp_peer_add(fd, &addr);
+}
+
+void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add)
+{
+    cm.tcm_on_peer_add = on_peer_add;
+}
+
+void tcp_init()
+{
+    log("tcp_init");
+    LIST_INIT(&peer_list_head);
 }
 
 void tcp_peer_free(tcp_peer_t *peer)
@@ -147,6 +170,11 @@ void tcp_peer_free(tcp_peer_t *peer)
 
 int tcp_cm_poll()
 {
+    if (cm.tcm_sockfd <= 0)
+    {
+        return 0;
+    }
+
     struct sockaddr_in peer_addr;
     socklen_t len = sizeof(peer_addr);
 
@@ -163,7 +191,13 @@ int tcp_cm_poll()
         return -errno;
     }
 
-    tcp_peer_add(fd, &peer_addr);
+    tcp_peer_t *peer = tcp_peer_add(fd, &peer_addr);
+
+    if (cm.tcm_on_peer_add)
+    {
+        cm.tcm_on_peer_add(peer);
+    }
+
     return 1;
 }
 
@@ -195,12 +229,14 @@ int tcp_poll()
         log("tcp_poll: tcp_cm_poll() = %d", rc);
     }
 
-    tcp_peer_t *peer;
     struct io_uring_cqe *cqe;
 
     int cqs_found = 0;
-    LIST_FOREACH(peer, &peer_list_head, tp_list_entry)
+    tcp_peer_t *peer = peer_list_head.lh_first, *next;
+    while (peer)
     {
+        // cb could modify peer list, so get next now
+        next = peer->tp_list_entry.le_next;
         rc = io_uring_peek_cqe(&peer->tp_ring, &cqe);
         if (rc == 0)
         {
@@ -209,6 +245,7 @@ int tcp_poll()
 
             // don't return here because that could starve peers at end of list
         }
+        peer = next;
     }
 
     return cqs_found;
@@ -217,6 +254,8 @@ int tcp_poll()
 void tcp_rq_rw(tcp_rq_t *rq)
 {
     struct io_uring *ring = &rq->trq_peer->tp_ring;
+
+    log("tcp_rq_rw: ring for peer %p: %p", rq->trq_peer, &rq->trq_peer->tp_ring);
 
     struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
 
