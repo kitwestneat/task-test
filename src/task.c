@@ -9,12 +9,17 @@ int tasks_alive = 0;
 
 int task_rd_new(task_t *task, size_t count)
 {
-    ASSERT(!task->task_rd);
-
-    task->task_rd = resource_desc_new(count);
-    task->task_rd->rd_cb_data = task;
+    task_rd_set(task, resource_desc_new(count));
 
     return 0;
+}
+
+void task_rd_set(task_t *task, res_desc_t *desc)
+{
+    ASSERT(!task->task_rd);
+
+    task->task_rd = desc;
+    task->task_rd->rd_cb_data = task;
 }
 
 void task_rd_release(task_t *task)
@@ -49,6 +54,7 @@ void *task_rd_get_data(task_t *task, int slot)
 
 static void task_run_cb(task_t *task)
 {
+    assert(task->task_cb);
     task->task_cb(task);
     tasks_alive--;
     log("task_run_cb %p: after cb [alive=%d]", task, tasks_alive);

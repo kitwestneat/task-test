@@ -35,7 +35,7 @@ static void tcp_peer_read_task(res_desc_t *desc)
     struct tcp_peer_read_data *tprd = desc->rd_cb_data;
     task_cb_t cb = tprd->tprd_cb;
     task->task_cb_data = tprd->tprd_cb_data;
-    task->task_rd = tprd->tprd_rq_desc;
+    task_rd_set(task, tprd->tprd_rq_desc);
     task->task_parent_desc = desc;
 
     free(tprd);

@@ -31,6 +31,7 @@ typedef struct task
 void task_new(task_cb_t cb, void *task_cb_data);
 
 int task_rd_new(task_t *task, size_t count);
+void task_rd_set(task_t *task, res_desc_t *desc);
 void task_rd_done(task_t *task);
 void task_rd_release(task_t *task);
 void task_rd_set_type(task_t *task, int slot, enum resource_type type);

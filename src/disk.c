@@ -100,3 +100,12 @@ void disk_rq_submit(disk_rq_t *rq)
 
     io_uring_submit(&ring);
 }
+
+void disk_rq_init(disk_rq_t *rq, enum drq_type type, disk_t *disk, size_t iov_count)
+{
+    rq->drq_disk = disk;
+    rq->drq_iov_count = iov_count;
+    rq->drq_iov = calloc(iov_count, sizeof(struct iovec));
+
+    rq->drq_type = type;
+}

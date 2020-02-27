@@ -5,7 +5,7 @@
 #include "tcp.h"
 #include "log.h"
 
-#define BUF_COUNT 1
+#define BUF_COUNT 4
 #define BUF_SIZE 4096
 
 struct stio_cmd

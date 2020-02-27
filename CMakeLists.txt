@@ -6,7 +6,7 @@ project(uring-test)
 include_directories(include)
 set(CMAKE_BUILD_TYPE Debug)
 
-set(libsrc 
+set(libsrc
 	src/task.c
 	src/resource.c
 	src/tcp_resource.c

@@ -43,6 +43,7 @@ typedef struct disk_rq
 int disk_open(const char *fn, disk_t **disk);
 void disk_close(disk_t *disk);
 int disk_init();
+void disk_rq_init(disk_rq_t *rq, enum drq_type type, disk_t *disk, size_t iov_count);
 void disk_rq_submit(disk_rq_t *rq);
 int disk_poll();
 
