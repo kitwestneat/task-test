@@ -31,6 +31,11 @@ struct stio_client_cmd
     void *scc_buf;
 };
 
+void stio_client_done(struct stio_client *client)
+{
+    free(client);
+}
+
 void stio_cc_free(struct stio_client_cmd *scc)
 {
     if (scc->scc_buf)
@@ -47,6 +52,15 @@ void do_client_read(task_t *task)
     log("do_client_read");
 }
 
+void client_write_fini(task_t *task)
+{
+    task_rd_done(task);
+
+    struct stio_client_cmd *data = task->task_cb_data;
+    stio_client_done(data->scc_client);
+    stio_cc_free(data);
+}
+
 void do_client_write0(task_t *task);
 
 void do_client_write3(task_t *task)
@@ -55,10 +69,7 @@ void do_client_write3(task_t *task)
     if (rq->drq_res < 0)
     {
         log("error writing: %d", rq->drq_res);
-        task_rd_done(task);
-
-        struct stio_client_cmd *data = task->task_cb_data;
-        stio_cc_free(data);
+        client_write_fini(task);
 
         return;
     }
@@ -90,10 +101,7 @@ void do_client_write1(task_t *task)
     if (rq->trq_res < 0)
     {
         log("error posting read buffer: %d", rq->trq_res);
-        task_rd_done(task);
-
-        struct stio_client_cmd *data = task->task_cb_data;
-        stio_cc_free(data);
+        client_write_fini(task);
 
         return;
     }
@@ -109,8 +117,7 @@ void do_client_write0(task_t *task)
     struct stio_client_cmd *data = task->task_cb_data;
     if (data->scc_cmd->stc_buf_count == 0)
     {
-        task_rd_done(task);
-        stio_cc_free(data);
+        client_write_fini(task);
 
         return;
     }
