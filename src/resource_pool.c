@@ -148,6 +148,8 @@ void resource_pool_init()
 
 void resource_pool_fini()
 {
+  tcp_fini();
+
   resource_pool_done(&task_pool);
   resource_pool_done(&tcp_pool);
   resource_pool_done(&disk_pool);

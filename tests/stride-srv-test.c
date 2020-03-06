@@ -90,6 +90,7 @@ void do_client_write2(task_t *task)
     rq->drq_iov[0].iov_len = BUF_SIZE;
 
     rq->drq_offset = data->scc_cmd->stc_offset;
+    data->scc_cmd->stc_offset += BUF_SIZE;
 
     log("-- posting disk bulk write %d", *(int *)data->scc_buf);
     task_submit(task, do_client_write3);
@@ -122,7 +123,6 @@ void do_client_write0(task_t *task)
         return;
     }
     data->scc_cmd->stc_buf_count--;
-    data->scc_cmd->stc_offset += BUF_SIZE;
 
     tcp_rq_t *rq = task_rd_get_data(task, 0);
     tcp_rq_peer_init(rq, TRQ_READ, data->scc_client->stcli_peer, 1);

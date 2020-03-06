@@ -13,7 +13,6 @@
 typedef struct tcp_peer
 {
     int tp_sockfd;
-    struct io_uring tp_ring;
 
     uint8_t tp_in_flight;
     struct sockaddr_in tp_addr;
@@ -58,6 +57,7 @@ typedef struct tcp_rq
 } tcp_rq_t;
 
 void tcp_init();
+void tcp_fini();
 int tcp_listen();
 
 void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add);

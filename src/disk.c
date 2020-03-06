@@ -87,11 +87,11 @@ void disk_rq_submit(disk_rq_t *rq)
     switch (rq->drq_type)
     {
     case DRQ_WRITE:
-        log("rq_submit: write");
+        log("rq_submit: write, fd: %d, offset: %llu", rq->drq_disk->disk_fd, rq->drq_offset);
         io_uring_prep_writev(sqe, rq->drq_disk->disk_fd, rq->drq_iov, rq->drq_iov_count, rq->drq_offset);
         break;
     case DRQ_READ:
-        log("rq_submit: read");
+        log("rq_submit: read, fd: %d, offset: %llu", rq->drq_disk->disk_fd, rq->drq_offset);
         io_uring_prep_readv(sqe, rq->drq_disk->disk_fd, rq->drq_iov, rq->drq_iov_count, rq->drq_offset);
         break;
     }

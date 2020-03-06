@@ -18,6 +18,8 @@
 #define TCP_PORT 1701
 #define URING_ENTRIES 32
 
+struct io_uring ring;
+
 LIST_HEAD(peer_head_t, tcp_peer)
 peer_list_head = LIST_HEAD_INITIALIZER(peer_list_head);
 
@@ -107,9 +109,6 @@ tcp_peer_t *tcp_peer_add(int fd, struct sockaddr_in *addr)
 
     memcpy(&peer->tp_addr, addr, sizeof(struct sockaddr_in));
 
-    log("initializing ring for %p: %p", peer, &peer->tp_ring);
-
-    io_uring_queue_init(URING_ENTRIES, &peer->tp_ring, 0);
     peer->tp_sockfd = fd;
     peer->tp_in_flight = 0;
     LIST_INSERT_HEAD(&peer_list_head, peer, tp_list_entry);
@@ -155,7 +154,13 @@ void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add)
 void tcp_init()
 {
     log("tcp_init");
+    io_uring_queue_init(URING_ENTRIES, &ring, 0);
     LIST_INIT(&peer_list_head);
+}
+
+void tcp_fini()
+{
+    io_uring_queue_exit(&ring);
 }
 
 void tcp_peer_free(tcp_peer_t *peer)
@@ -164,7 +169,6 @@ void tcp_peer_free(tcp_peer_t *peer)
 
     close(peer->tp_sockfd);
     LIST_REMOVE(peer, tp_list_entry);
-    io_uring_queue_exit(&peer->tp_ring);
     free(peer);
 }
 
@@ -201,11 +205,11 @@ int tcp_cm_poll()
     return 1;
 }
 
-void peer_process_cqe(tcp_peer_t *peer, struct io_uring_cqe *cqe)
+void process_cqe(struct io_uring_cqe *cqe)
 {
     tcp_rq_t *rq = io_uring_cqe_get_data(cqe);
     rq->trq_res = cqe->res;
-    io_uring_cqe_seen(&peer->tp_ring, cqe);
+    io_uring_cqe_seen(&ring, cqe);
 
     if (rq->trq_type == TRQ_BROADCAST)
     {
@@ -231,33 +235,19 @@ int tcp_poll()
 
     struct io_uring_cqe *cqe;
 
-    int cqs_found = 0;
-    tcp_peer_t *peer = peer_list_head.lh_first, *next;
-    while (peer)
+    rc = io_uring_peek_cqe(&ring, &cqe);
+    if (rc == 0)
     {
-        // cb could modify peer list, so get next now
-        next = peer->tp_list_entry.le_next;
-        rc = io_uring_peek_cqe(&peer->tp_ring, &cqe);
-        if (rc == 0)
-        {
-            peer_process_cqe(peer, cqe);
-            cqs_found++;
-
-            // don't return here because that could starve peers at end of list
-        }
-        peer = next;
+        process_cqe(cqe);
+        return 1;
     }
 
-    return cqs_found;
+    return 0;
 }
 
 void tcp_rq_rw(tcp_rq_t *rq)
 {
-    struct io_uring *ring = &rq->trq_peer->tp_ring;
-
-    log("tcp_rq_rw: ring for peer %p: %p", rq->trq_peer, &rq->trq_peer->tp_ring);
-
-    struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+    struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
 
     switch (rq->trq_type)
     {
@@ -272,7 +262,7 @@ void tcp_rq_rw(tcp_rq_t *rq)
     }
 
     io_uring_sqe_set_data(sqe, rq);
-    io_uring_submit(ring);
+    io_uring_submit(&ring);
 }
 
 void tcp_rq_broadcast(tcp_rq_t *rq)
@@ -282,16 +272,24 @@ void tcp_rq_broadcast(tcp_rq_t *rq)
 
     LIST_FOREACH(peer, &peer_list_head, tp_list_entry)
     {
-        struct io_uring *ring = &peer->tp_ring;
-        struct io_uring_sqe *sqe = io_uring_get_sqe(ring);
+        struct io_uring_sqe *sqe = io_uring_get_sqe(&ring);
+        if (!sqe)
+        {
+            io_uring_submit(&ring);
+            int MAX_SQE_ATTEMPTS = 5;
+            for (int i = 0; i < MAX_SQE_ATTEMPTS; i++)
+            {
+                sqe = io_uring_get_sqe(&ring);
+            }
+        }
 
         io_uring_prep_writev(sqe, peer->tp_sockfd, rq->trq_iov, rq->trq_iov_count, 0);
 
         io_uring_sqe_set_data(sqe, rq);
-        io_uring_submit(ring);
 
         rq->trq_bcast_cqs_left++;
     }
+    io_uring_submit(&ring);
 }
 
 void tcp_rq_submit(tcp_rq_t *rq)
