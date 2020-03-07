@@ -8,6 +8,8 @@
 #define BUF_COUNT 4
 #define BUF_SIZE 4096
 
+off_t offset_arg = 0;
+
 struct stio_cmd
 {
     enum drq_type stc_type;
@@ -15,33 +17,22 @@ struct stio_cmd
     uint32_t stc_buf_count;
 };
 
-void send_bulk0(task_t *task);
-
 void send_bulk1(task_t *task)
 {
-    static int buf_sends_left = BUF_COUNT;
     tcp_rq_t *rq = task_rd_get_data(task, 0);
 
-    buf_sends_left--;
-
-    if (buf_sends_left == 0)
-    {
-        free(rq->trq_iov[0].iov_base);
-        tcp_peer_free(task->task_cb_data);
-        task_rd_done(task);
-
-        return;
-    }
-
-    task_submit(task, send_bulk0);
+    free(rq->trq_iov[0].iov_base);
+    tcp_peer_free(task->task_cb_data);
+    task_rd_done(task);
 }
 
 void send_bulk0(task_t *task)
 {
-    static char *buf = NULL;
-    if (!buf)
+    size_t bufsz = BUF_SIZE * BUF_COUNT;
+    char *buf = malloc(bufsz);
+    for (int i = 0; i < bufsz; i++)
     {
-        buf = malloc(BUF_SIZE);
+        buf[i] = i & 0xff;
     }
 
     tcp_peer_t *peer = task->task_cb_data;
@@ -50,12 +41,7 @@ void send_bulk0(task_t *task)
     tcp_rq_peer_init(rq, TRQ_WRITE, peer, 1);
 
     rq->trq_iov[0].iov_base = buf;
-    rq->trq_iov[0].iov_len = BUF_SIZE;
-
-    for (int i = 0; i < BUF_SIZE; i++)
-    {
-        buf[i] = i & 0xff;
-    }
+    rq->trq_iov[0].iov_len = bufsz;
 
     task_submit(task, send_bulk1);
 }
@@ -87,7 +73,7 @@ void send_cmd0(task_t *task)
     struct stio_cmd *cmd_buf = malloc(sizeof(struct stio_cmd));
 
     cmd_buf->stc_type = DRQ_WRITE;
-    cmd_buf->stc_offset = 0;
+    cmd_buf->stc_offset = offset_arg;
     cmd_buf->stc_buf_count = BUF_COUNT;
 
     rq->trq_iov[0].iov_base = cmd_buf;
@@ -104,7 +90,11 @@ void get_rq(res_desc_t *desc)
     task_submit(task, send_cmd0);
 }
 
-int main()
+int main(int argc, const char *argv[])
 {
+    if (argc > 1)
+    {
+        offset_arg = atoi(argv[1]) * BUF_COUNT * BUF_SIZE;
+    }
     task_init(1, get_rq);
 }

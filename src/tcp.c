@@ -16,7 +16,7 @@
 #include "event_svc.h"
 
 #define TCP_PORT 1701
-#define URING_ENTRIES 32
+#define URING_ENTRIES 2
 
 struct io_uring ring;
 
@@ -153,8 +153,12 @@ void tcp_cm_set_on_peer_add(peer_event_cb_t on_peer_add)
 
 void tcp_init()
 {
-    log("tcp_init");
-    io_uring_queue_init(URING_ENTRIES, &ring, 0);
+    int rc = io_uring_queue_init(URING_ENTRIES, &ring, 0);
+    log("inited, rc = %d %m", rc);
+    if (rc < 0)
+    {
+        exit(rc);
+    }
     LIST_INIT(&peer_list_head);
 }
 
@@ -221,7 +225,7 @@ void process_cqe(struct io_uring_cqe *cqe)
         }
     }
 
-    log("cqe seen, calling cb");
+    log("cqe seen, res = %d, calling cb", rq->trq_res);
     rq->trq_cb(rq);
 }
 
@@ -230,7 +234,7 @@ int tcp_poll()
     int rc = tcp_cm_poll();
     if (rc < 0)
     {
-        log("tcp_poll: tcp_cm_poll() = %d", rc);
+        log("tcp_cm_poll() = %d", rc);
     }
 
     struct io_uring_cqe *cqe;
@@ -252,11 +256,11 @@ void tcp_rq_rw(tcp_rq_t *rq)
     switch (rq->trq_type)
     {
     case TRQ_WRITE:
-        log("rq_submit: write");
+        log("write, fd %d iov len %x", rq->trq_peer->tp_sockfd, rq->trq_iov[0].iov_len);
         io_uring_prep_writev(sqe, rq->trq_peer->tp_sockfd, rq->trq_iov, rq->trq_iov_count, 0);
         break;
     case TRQ_READ:
-        log("rq_submit: read");
+        log("read, fd %d iov len %x", rq->trq_peer->tp_sockfd, rq->trq_iov[0].iov_len);
         io_uring_prep_readv(sqe, rq->trq_peer->tp_sockfd, rq->trq_iov, rq->trq_iov_count, 0);
         break;
     }

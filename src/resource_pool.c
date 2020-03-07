@@ -99,6 +99,7 @@ unsigned resource_pool_get_index(struct resource_pool *rp, void *obj)
 int resource_pool_alloc(struct resource_pool *rp)
 {
   rp->rp_data = malloc(rp->rp_obj_size * rp->rp_count);
+  ASSERT(rp->rp_data);
   rp->rp_free_count = rp->rp_count;
   rp->rp_free_bitmap = bitmap_new(rp->rp_count);
 }
@@ -143,7 +144,7 @@ void resource_pool_init()
   disk_init();
   tcp_init();
 
-  log("resource pools created: %p %p", task_pool, tcp_pool);
+  log("resource pools created: %p %p %p", task_pool.rp_data, tcp_pool.rp_data, disk_pool.rp_data);
 }
 
 void resource_pool_fini()

@@ -69,15 +69,10 @@ void do_client_write3(task_t *task)
     if (rq->drq_res < 0)
     {
         log("error writing: %d", rq->drq_res);
-        client_write_fini(task);
 
         return;
     }
-
-    log("-- allocating net read rq");
-    task_rd_release(task);
-    task_rd_set_type(task, 0, RT_TCP);
-    task_submit(task, do_client_write0);
+    client_write_fini(task);
 }
 
 void do_client_write2(task_t *task)
@@ -87,10 +82,9 @@ void do_client_write2(task_t *task)
     disk_rq_init(rq, DRQ_WRITE, disk, 1);
 
     rq->drq_iov[0].iov_base = data->scc_buf;
-    rq->drq_iov[0].iov_len = BUF_SIZE;
+    rq->drq_iov[0].iov_len = data->scc_cmd->stc_buf_count * BUF_SIZE;
 
     rq->drq_offset = data->scc_cmd->stc_offset;
-    data->scc_cmd->stc_offset += BUF_SIZE;
 
     log("-- posting disk bulk write %d", *(int *)data->scc_buf);
     task_submit(task, do_client_write3);
@@ -122,18 +116,19 @@ void do_client_write0(task_t *task)
 
         return;
     }
-    data->scc_cmd->stc_buf_count--;
 
     tcp_rq_t *rq = task_rd_get_data(task, 0);
     tcp_rq_peer_init(rq, TRQ_READ, data->scc_client->stcli_peer, 1);
 
+    size_t bufsz = BUF_SIZE * data->scc_cmd->stc_buf_count;
+
     if (data->scc_buf == 0)
     {
-        data->scc_buf = malloc(BUF_SIZE);
+        data->scc_buf = malloc(bufsz);
     }
 
     rq->trq_iov[0].iov_base = data->scc_buf;
-    rq->trq_iov[0].iov_len = BUF_SIZE;
+    rq->trq_iov[0].iov_len = bufsz;
 
     log("-- posting network bulk read");
     task_submit(task, do_client_write1);

@@ -62,7 +62,7 @@ static void tcp_peer_fill_rd_rq(res_desc_t *desc)
     rq->trq_iov[0].iov_base = malloc(tprd->tprd_bufsz);
     rq->trq_iov[0].iov_len = tprd->tprd_bufsz;
 
-    log("tcp_peer_fill_rd_rq: peer %p, tprd %p", rq->trq_peer, tprd);
+    log("peer %p, tprd %p", rq->trq_peer, tprd);
 
     desc->rd_cb = tcp_peer_on_read;
     desc->rd_cb_data = tprd;
@@ -78,7 +78,7 @@ void tcp_peer_post_read_buf(tcp_peer_t *peer, size_t bufsz, task_cb_t cb, void *
     tprd->tprd_cb_data = cb_data;
     tprd->tprd_bufsz = bufsz;
 
-    log("tcp_peer_post_read_buf: peer %p, tprd %p", tprd->tprd_peer, tprd);
+    log("peer %p, tprd %p", tprd->tprd_peer, tprd);
 
     resource_get_one(RT_TCP, tcp_peer_fill_rd_rq, tprd);
 }

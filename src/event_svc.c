@@ -8,7 +8,7 @@ int event_svc_fd = 0;
 
 void event_svc_add(int fd, es_poll_fn_t cb)
 {
-    log("event_svc_add: adding %d, cb %p", fd, cb);
+    log("adding fd %d, cb %p", fd, cb);
     struct epoll_event ev = {
         .events = EPOLLIN | EPOLLOUT | EPOLLET,
         .data.ptr = cb,

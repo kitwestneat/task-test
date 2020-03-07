@@ -6,7 +6,7 @@
 #include <stddef.h>
 
 #define TASK_COUNT 6
-#define DISK_COUNT 50
+#define DISK_COUNT 1
 #define TCP_COUNT 50
 
 enum resource_type
